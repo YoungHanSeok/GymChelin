@@ -23,7 +23,7 @@ export default function Home() {
         onClick={handleFetchUsers}
         className="mt-8 rounded-lg bg-blue-500 px-4 py-2 font-bold text-white hover:bg-blue-700"
       >
-        유저 정보 불러오기 버튼 (API 테스트)
+        유저 정보 불러오기 버튼 테스트
       </button>
     </main>
   );
