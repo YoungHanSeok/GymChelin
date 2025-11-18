@@ -8,7 +8,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       <main className="container mx-auto grid grid-cols-1 lg:grid-cols-5 gap-8">
         
         {/* 좌측 광고 영역 (시맨틱 태그: <aside>) */}
-        <aside className="hidden lg:block py-8">
+        <aside className="py-8">
           <div className="sticky top-20 p-4 bg-gray-100 rounded-lg">
             좌측 광고
           </div>
@@ -22,7 +22,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         </section>
 
         {/* 우측 광고 영역 (시맨틱 태그: <aside>) */}
-        <aside className="hidden lg:block py-8">
+        <aside className="py-8">
           <div className="sticky top-20 p-4 bg-gray-100 rounded-lg">
             우측 광고
           </div>

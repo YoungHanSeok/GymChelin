@@ -1,5 +1,6 @@
 'use client'; // 클라이언트 컴포넌트로 선언
 
+import Link from 'next/link';
 import React, { useState } from 'react';
 
 const Header = () => {
@@ -21,16 +22,16 @@ const Header = () => {
           {/* 데스크톱 메뉴 (md 화면 이상에서 보임) */}
           <div className="hidden md:flex items-center space-x-6">
             <a href="#" className="text-gray-700 hover:text-blue-600">
-              Home
+              자유 게시판
             </a>
             <a href="#" className="text-gray-700 hover:text-blue-600">
-              About
+              식단 게시판
             </a>
             <a href="#" className="text-gray-700 hover:text-blue-600">
-              Services
+              운동일기 게시판
             </a>
             <a href="#" className="text-gray-700 hover:text-blue-600">
-              Contact
+              헬스장 후기
             </a>
           </div>
 
@@ -38,9 +39,9 @@ const Header = () => {
           <div className="flex items-center">
             {/* 로그인 버튼 (데스크톱) */}
             <div className="hidden md:block">
-              <a href="#" className="text-gray-700 hover:text-blue-600">
+              <Link className="text-gray-700 hover:text-blue-600" href="/login">
                 Login
-              </a>
+              </Link>
             </div>
 
             {/* 모바일 메뉴 버튼 (md 화면 미만에서 보임) */}

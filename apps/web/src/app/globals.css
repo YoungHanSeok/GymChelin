@@ -1,1 +1,16 @@
 @import "tailwindcss";
+
+@layer components {
+  /* 공통 인풋 스타일 */
+  .input-style {
+    @apply mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm 
+           focus:outline-none focus:ring-2 focus:ring-blue-500;
+  }
+
+  /* 공통 기본 버튼 스타일 */
+  .button-primary {
+    @apply w-full justify-center rounded-md bg-blue-600 px-4 py-2 
+           font-semibold text-white shadow-sm hover:bg-blue-700 
+           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
+  }
+}
