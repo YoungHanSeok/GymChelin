@@ -14,7 +14,14 @@ datasource db {
 }
 
 model User {
-  id    Int     @id @default(autoincrement())
-  email String  @unique
-  name  String?
+  id            Int         @id @default(autoincrement()) // 유저 고유값
+  email         String      @unique                       // 이메일 주소
+  username      String      @unique @db.VarChar(30)       // 사용자 아이디
+  password      String                                    // 비밀번호
+  nickname      String      @unique @db.VarChar(30)       // 사용자 닉네임
+  passwordReset String      @default("N") @db.Char(1)     // 비밀번호 초기화 여부
+  createdAt     DateTime    @default(now())               // 생성 일자
+  updatedAt     DateTime    @updatedAt                    // 수정 일자   
+
+  @@map("users")
 }

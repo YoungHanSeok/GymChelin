@@ -2,6 +2,8 @@
 
 import React, { useState } from "react";
 import SignUpModal from "./SignUpComponent";
+import FindIdModal from "./FindIdComponent";
+import FindPasswordModal from "./FindPasswordComponent";
 import Link from "next/link";
 
 
@@ -103,10 +105,10 @@ const LoginPage = () => {
 
       {/* 5. 모달 조건부 렌더링 */}
       {modalOpen === 'signup' && <SignUpModal onClose={handleCloseModal} />}
-      {/* {modalOpen === 'findId' && <FindIdModal onClose={handleCloseModal} />}
+      {modalOpen === 'findId' && <FindIdModal onClose={handleCloseModal} />}
       {modalOpen === 'findPassword' && (
         <FindPasswordModal onClose={handleCloseModal} />
-      )} */}
+      )}
     </div>
   );
 }
