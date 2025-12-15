@@ -2,10 +2,14 @@
 
 import api from "@/lib/api";
 import Modal from "../_components/modalComponent";
-import {useEffect, useState } from "react";
+import {use, useEffect, useState } from "react";
 import { useForm, SubmitHandler } from "react-hook-form";
 
 const SignUpModal = ({ onClose }: { onClose: () => void }) => {
+
+    const [emailDuplication, setEmailDuplication] = useState(false);
+    const [idDuplication, setIdDuplication] = useState(false);
+
     interface SignUpFormData {
       email: string;
       id: string;
@@ -14,7 +18,7 @@ const SignUpModal = ({ onClose }: { onClose: () => void }) => {
     }
 
     const { register, handleSubmit, formState: { errors,isSubmitting,isValid },watch,getValues,trigger }= useForm<SignUpFormData>({
-      mode : "onChange",
+      mode : "onBlur",
       defaultValues : {
         email : "",
         id : "",
@@ -51,8 +55,7 @@ const SignUpModal = ({ onClose }: { onClose: () => void }) => {
     };
 
     const submitForm : SubmitHandler<SignUpFormData> = (data) => {
-      console.log("aaa");
-      console.log("data : "+data);
+      alert("회원가입이 완료되었습니다.");
     }
 
 
@@ -60,60 +63,94 @@ const SignUpModal = ({ onClose }: { onClose: () => void }) => {
     <Modal onClose={onClose}>
       <h2 className="mb-6 text-center text-2xl font-semibold">회원가입</h2>
 
-      <form className="space-y-4" onSubmit={handleSubmit(submitForm)}>
-        <div className="h-20">
-          <label className="block text-sm font-medium text-gray-700">
-            이메일
-          </label>
-          <div className="flex items-center space-x-2">
-            <input type="text" required className="input-style flex-grow" {
-              ...register("email",{
-                    required : true,
-                    pattern : {
-                      value : /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
-                      message : "유효한 이메일 형식이 아닙니다."
-                    }
-                  })
-              }/>
-            <button
-              type="button"
-              className="whitespace-nowrap rounded-md bg-gray-600 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
-              onClick={emailCheckHandler}
-            >
-              중복 확인
-            </button>
-            
+      <form className="space-y-4" onSubmit={handleSubmit(submitForm)} noValidate>
+        <div>
+            <div className="flex items-center space-x-2">
+                <div className="relative flex-grow">
+                    <input type="text" id="signup-email" className="peer w-full rounded-md border border-gray-300 px-4 py-2 text-gray-900 placeholder-transparent focus:border-blue-500 focus:outline-none" placeholder="email" {...register("email",{
+                            required : true,
+                            pattern : {
+                            value : /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
+                            message : "유효한 이메일 형식이 아닙니다."
+                            }
+                        })}/>
+                    <label htmlFor="signup-email" className="absolute -top-3 left-2 bg-white px-1 text-sm text-gray-600 transition-all peer-placeholder-shown:top-2 peer-placeholder-shown:text-base peer-focus:-top-3 peer-focus:text-sm peer-focus:text-blue-600">이메일</label>
+                </div>
+                <button
+                type="button"
+                className="flex-shrink-0 whitespace-nowrap rounded-md bg-gray-200 px-3 py-2 text-sm font-medium text-gray-800 hover:bg-gray-300"
+                onClick={emailCheckHandler}
+                >
+                중복 확인
+                </button>
+            </div>
+            <div className="h-6 pt-1">
+              {errors.email && <p className="text-sm text-red-500">{errors.email.message}</p>}
+            </div>
+        </div>
+
+        <div>
+            <div className="flex items-center space-x-2">
+                <div className="relative flex-grow">
+                    <input type="text" id="signup-id" maxLength={10} className="peer w-full rounded-md border border-gray-300 px-4 py-2 text-gray-900 placeholder-transparent focus:border-blue-500 focus:outline-none" placeholder="id" {...register("id",{
+                        required : "아이디를 입력해주세요.",
+                        minLength : {
+                            value : 2,
+                            message : "아이디는 최소 2자 이상이어야 합니다."
+                        },
+                        pattern : {
+                            value : /^[a-zA-Z0-9가-힣]+$/,
+                            message : "영문, 숫자, 완성된 한글만 입력 가능합니다."
+                        }
+                        })}/>
+                    <label htmlFor="signup-id" className="absolute -top-3 left-2 bg-white px-1 text-sm text-gray-600 transition-all peer-placeholder-shown:top-2 peer-placeholder-shown:text-base peer-focus:-top-3 peer-focus:text-sm peer-focus:text-blue-600">아이디</label>
+                </div>
+                <button
+                type="button"
+                className="flex-shrink-0 whitespace-nowrap rounded-md bg-gray-200 px-3 py-2 text-sm font-medium text-gray-800 hover:bg-gray-300"
+                onClick={IdCheckHandler}
+                >
+                중복 확인
+                </button>
+            </div>
+            <div className="h-6 pt-1">
+              {errors.id && <p className="text-sm text-red-500">{errors.id.message}</p>}
+            </div>
+        </div>
+        
+        <div>
+          <div className="relative">
+              <input type="password" id="signup-password" maxLength={20} className="peer w-full rounded-md border border-gray-300 px-4 py-2 text-gray-900 placeholder-transparent focus:border-blue-500 focus:outline-none" placeholder="password" {...register("password",{
+                  required : "비밀번호를 입력해주세요.",
+                  minLength : {
+                  value : 6,
+                  message : "비밀번호는 최소 6자 이상이어야 합니다."
+                  },
+                  pattern : {
+                  value : /^(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*()_+[\]{};':"\\|,.<>/?]).{6,}$/,
+                  message : "비밀번호는 영문, 숫자, 특수문자를 포함해야 합니다."
+                  }
+                  })}/>
+              <label htmlFor="signup-password" className="absolute -top-3 left-2 bg-white px-1 text-sm text-gray-600 transition-all peer-placeholder-shown:top-2 peer-placeholder-shown:text-base peer-focus:-top-3 peer-focus:text-sm peer-focus:text-blue-600">비밀번호</label>
           </div>
-          {errors.email && <p className="text-red-500 text-sm">{errors.email.message}</p>}
-        </div>
-        <div className="h-20">
-          <label className="block text-sm font-medium text-gray-700">
-            아이디
-          </label>
-          <div className="flex items-center space-x-2">
-            <input type="text" required className="input-style flex-grow" {...register("id",{required : true})}/>
-            <button
-              type="button"
-              className="whitespace-nowrap rounded-md bg-gray-600 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
-              onClick={IdCheckHandler}
-            >
-              중복 확인
-            </button>
+          <div className="h-6 pt-1">
+            {errors.password && <p className="text-xs text-red-500">{errors.password.message}</p>}
           </div>
         </div>
-        <div className="h-20">
-          <label className="block text-sm font-medium text-gray-700">
-            비밀번호
-          </label>
-          <input type="password" required className="input-style" {...register("password",{required : true})}/>
+
+        <div>
+          <div className="relative">
+              <input type="password" id="signup-passwordCheck" className="peer w-full rounded-md border border-gray-300 px-4 py-2 text-gray-900 placeholder-transparent focus:border-blue-500 focus:outline-none" placeholder="passwordCheck" {...register("passwordCheck",{
+                      required : "비밀번호를 다시 입력해주세요.",
+                      validate : value => value === getValues("password") || "비밀번호가 일치하지 않습니다."
+                  })}/>
+              <label htmlFor="signup-passwordCheck" className="absolute -top-3 left-2 bg-white px-1 text-sm text-gray-600 transition-all peer-placeholder-shown:top-2 peer-placeholder-shown:text-base peer-focus:-top-3 peer-focus:text-sm peer-focus:text-blue-600">비밀번호 확인</label>
+          </div>
+          <div className="h-6 pt-1">
+            {errors.passwordCheck && <p className="text-sm text-red-500">{errors.passwordCheck.message}</p>}
+          </div>
         </div>
-        <div className="h-20">
-          <label className="block text-sm font-medium text-gray-700">
-            비밀번호 확인
-          </label>
-          <input type="password" required className="input-style" {...register("passwordCheck",{required : true})}/>
-        </div>
-        <button type="submit" className="button-primary mt-2">
+        <button type="submit" className="w-full rounded-md bg-blue-600 py-3 text-lg font-semibold text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
           가입하기
         </button>
       </form>
