@@ -25,3 +25,4 @@ dist
 
 # sql
 *.sql
+!apps/api/prisma/migrations/**/*.sql

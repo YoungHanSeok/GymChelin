@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,16 +7,262 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum AuthProvider {
+  LOCAL
+  KAKAO
+  NAVER
+  GOOGLE
+}
+
+enum ContentStatus {
+  ACTIVE
+  BLINDED
+  DELETED
+}
+
+enum PostCategory {
+  FREE
+  WORKOUT_LOG
+}
+
+enum ReportTargetType {
+  POST
+  COMMENT
+  ROUTINE
+  GYM_REVIEW
+}
+
+enum ReportStatus {
+  PENDING
+  RESOLVED
+  REJECTED
+}
+
+enum AdSlot {
+  MAIN_TOP
+  MAIN_LEFT
+  MAIN_RIGHT
+  POST_LIST_INLINE
+  GYM_DETAIL_SIDE
+}
+
 model User {
-  id            Int         @id @default(autoincrement())     // 유저 고유값
-  email         String      @unique @db.VarChar(30)           // 이메일 주소
-  username      String      @unique @db.VarChar(15)           // 사용자 아이디
-  password      String                                        // 비밀번호
-  nickname      String      @unique @db.VarChar(15)           // 사용자 닉네임
-  passwordReset String      @default("N") @db.Char(1)         // 비밀번호 초기화 여부
-  createdAt     DateTime    @default(now())                   // 생성 일자
-  updatedAt     DateTime    @updatedAt                        // 수정 일자   
-  deleteYN      String      @default("N") @db.Char(1)         // 삭제 여부
-  changePwAt    DateTime    @updatedAt                        // 비밀번호 변경 일자
+  id             Int                @id @default(autoincrement())
+  email          String             @unique @db.VarChar(120)
+  username       String             @unique @db.VarChar(30)
+  password       String?
+  nickname       String             @unique @db.VarChar(30)
+  role           UserRole           @default(USER)
+  passwordReset  String             @default("N") @db.Char(1)
+  deleteYN       String             @default("N") @db.Char(1)
+  changePwAt     DateTime           @default(now())
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  socialAccounts SocialAccount[]
+  posts          Post[]
+  comments       Comment[]
+  reactions      Reaction[]
+  routines       Routine[]
+  routineLikes   RoutineLike[]
+  gymReviews     GymReview[]
+  reports        Report[]           @relation("ReporterReports")
+  moderationLogs ModerationAction[] @relation("AdminModerationActions")
+
   @@map("users")
+}
+
+model SocialAccount {
+  id             Int          @id @default(autoincrement())
+  provider       AuthProvider
+  providerUserId String
+  email          String?
+  userId         Int
+  createdAt      DateTime     @default(now())
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUserId])
+}
+
+model Post {
+  id        Int           @id @default(autoincrement())
+  category  PostCategory
+  title     String        @db.VarChar(180)
+  content   String
+  status    ContentStatus @default(ACTIVE)
+  viewCount Int           @default(0)
+  authorId  Int
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  author    User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  comments  Comment[]
+  reactions Reaction[]
+
+  @@index([category, status, createdAt])
+}
+
+model Comment {
+  id        Int           @id @default(autoincrement())
+  content   String
+  status    ContentStatus @default(ACTIVE)
+  postId    Int
+  authorId  Int
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  post      Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author    User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([postId, status, createdAt])
+}
+
+model Reaction {
+  id        Int      @id @default(autoincrement())
+  postId    Int
+  userId    Int
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+}
+
+model Routine {
+  id        Int           @id @default(autoincrement())
+  title     String        @db.VarChar(180)
+  summary   String        @db.VarChar(240)
+  content   String
+  status    ContentStatus @default(ACTIVE)
+  likeCount Int           @default(0)
+  viewCount Int           @default(0)
+  authorId  Int
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  author    User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  likes     RoutineLike[]
+
+  @@index([status, likeCount, createdAt])
+}
+
+model RoutineLike {
+  id        Int      @id @default(autoincrement())
+  routineId Int
+  userId    Int
+  createdAt DateTime @default(now())
+  routine   Routine  @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([routineId, userId])
+}
+
+model ExerciseWiki {
+  id            Int      @id @default(autoincrement())
+  slug          String   @unique
+  name          String   @db.VarChar(80)
+  targetMuscles String[]
+  equipment     String?
+  difficulty    String   @db.VarChar(30)
+  description   String
+  howTo         String[]
+  effects       String[]
+  cautions      String[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([name])
+}
+
+model GymPlace {
+  id                   Int         @id @default(autoincrement())
+  provider             AuthProvider @default(KAKAO)
+  providerPlaceId      String      @unique
+  name                 String      @db.VarChar(160)
+  categoryName         String?
+  addressName          String?
+  roadAddressName      String?
+  phone                String?
+  placeUrl             String?
+  longitude            Float?
+  latitude             Float?
+  externalRating       Float?
+  externalRatingSource String?
+  avgRating            Float       @default(0)
+  reviewCount          Int         @default(0)
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+  reviews              GymReview[]
+}
+
+model GymReview {
+  id        Int           @id @default(autoincrement())
+  rating    Int
+  content   String
+  status    ContentStatus @default(ACTIVE)
+  gymId     Int
+  userId    Int
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  gym       GymPlace      @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([gymId, userId])
+  @@index([gymId, status, createdAt])
+}
+
+model Report {
+  id         Int              @id @default(autoincrement())
+  targetType ReportTargetType
+  targetId   Int
+  reason     String
+  status     ReportStatus     @default(PENDING)
+  reporterId Int
+  createdAt  DateTime         @default(now())
+  resolvedAt DateTime?
+  reporter   User             @relation("ReporterReports", fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@index([targetType, targetId, status])
+}
+
+model ModerationAction {
+  id         Int              @id @default(autoincrement())
+  targetType ReportTargetType
+  targetId   Int
+  action     String           @db.VarChar(40)
+  reason     String?
+  adminId    Int
+  createdAt  DateTime         @default(now())
+  admin      User             @relation("AdminModerationActions", fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([targetType, targetId])
+}
+
+model AdPlacement {
+  id            Int      @id @default(autoincrement())
+  slot          AdSlot   @unique
+  adsenseClient String?
+  adsenseSlot   String?
+  enabled       Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model DirectBanner {
+  id          Int      @id @default(autoincrement())
+  slot        AdSlot
+  title       String   @db.VarChar(120)
+  imageUrl    String
+  linkUrl     String
+  startsAt    DateTime
+  endsAt      DateTime
+  priority    Int      @default(0)
+  impressions Int      @default(0)
+  clicks      Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([slot, isActive, startsAt, endsAt, priority])
 }

@@ -3,13 +3,17 @@ import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const allowedOrigins = (process.env.CORS_ORIGINS ?? 'http://localhost:3000')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
 
-  // CORS 활성화
   app.enableCors({
-    origin: 'http://localhost:3000', // Next.js 개발 서버 주소
+    origin: allowedOrigins,
     credentials: true,
   });
 
-  await app.listen(3001); // 백엔드 서버는 3001 포트 사용
+  await app.listen(Number(process.env.PORT ?? 3001));
 }
+
 bootstrap();

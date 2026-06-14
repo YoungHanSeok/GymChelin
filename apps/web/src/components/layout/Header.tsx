@@ -1,132 +1,96 @@
-'use client'; // 클라이언트 컴포넌트로 선언
+"use client";
 
-import Link from 'next/link';
-import React, { useState } from 'react';
+import Link from "next/link";
+import { useState } from "react";
 
-const Header = () => {
-  // 모바일 메뉴의 열림/닫힘 상태를 관리
+const navItems = [
+  { href: "/boards/workout-log", label: "운동일지" },
+  { href: "/boards/free", label: "자유게시판" },
+  { href: "/routines", label: "나의 루틴" },
+  { href: "/wiki", label: "웨이트 위키" },
+  { href: "/gyms", label: "헬스장 리뷰" },
+];
+
+export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    // 상단 네비게이션 바
-    <nav className="bg-white shadow-md">
-      <div className="max-w-6xl mx-auto px-4">
-        <div className="flex justify-between items-center py-4">
-          {/* 로고 */}
-          <div>
-            <a href="#" className="text-2xl font-bold text-gray-900">
-              Gymchelin
-            </a>
-          </div>
+    <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
+      <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3">
+        <Link href="/" className="shrink-0 text-xl font-black tracking-normal text-slate-950">
+          짐슐랭
+        </Link>
 
-          {/* 데스크톱 메뉴 (md 화면 이상에서 보임) */}
-          <div className="hidden md:flex items-center space-x-6">
-            <a href="#" className="text-gray-700 hover:text-blue-600">
-              자유 게시판
-            </a>
-            <a href="#" className="text-gray-700 hover:text-blue-600">
-              식단 게시판
-            </a>
-            <a href="#" className="text-gray-700 hover:text-blue-600">
-              운동일기 게시판
-            </a>
-            <a href="#" className="text-gray-700 hover:text-blue-600">
-              헬스장 후기
-            </a>
-          </div>
+        <nav className="hidden items-center gap-1 lg:flex">
+          {navItems.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="rounded px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-950"
+            >
+              {item.label}
+            </Link>
+          ))}
+        </nav>
 
-          {/* 오른쪽 영역 */}
-          <div className="flex items-center">
-            {/* 로그인 버튼 (데스크톱) */}
-            <div className="hidden md:block">
-              <Link className="text-gray-700 hover:text-blue-600" href="/login">
-                Login
-              </Link>
-            </div>
+        <form className="ml-auto hidden min-w-72 max-w-md flex-1 md:block">
+          <label htmlFor="site-search" className="sr-only">
+            검색
+          </label>
+          <input
+            id="site-search"
+            name="q"
+            placeholder="운동, 루틴, 헬스장을 검색해 보세요"
+            className="w-full rounded border border-slate-300 bg-slate-50 px-3 py-2 text-sm outline-none transition focus:border-emerald-500 focus:bg-white"
+          />
+        </form>
 
-            {/* 모바일 메뉴 버튼 (md 화면 미만에서 보임) */}
-            <div className="md:hidden">
-              <button
-                onClick={() => setIsOpen(!isOpen)}
-                className="text-gray-700 focus:outline-none"
-                aria-label="Toggle menu"
+        <Link
+          href="/login"
+          className="hidden rounded bg-slate-950 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 md:inline-flex"
+        >
+          로그인
+        </Link>
+
+        <button
+          type="button"
+          onClick={() => setIsOpen((value) => !value)}
+          className="ml-auto rounded border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 md:hidden"
+        >
+          메뉴
+        </button>
+      </div>
+
+      {isOpen && (
+        <div className="border-t border-slate-200 bg-white px-4 py-3 md:hidden">
+          <form className="mb-3">
+            <input
+              name="q"
+              placeholder="검색"
+              className="w-full rounded border border-slate-300 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+            />
+          </form>
+          <nav className="grid gap-1">
+            {navItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="rounded px-2 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                onClick={() => setIsOpen(false)}
               >
-                {/* 상태(isOpen)에 따라 아이콘 변경 */}
-                {isOpen ? (
-                  // 닫기 (X) 아이콘
-                  <svg
-                    className="w-6 h-6"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                ) : (
-                  // 햄버거 아이콘
-                  <svg
-                    className="w-6 h-6"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4 6h16M4 12h16m-7 6h7"
-                    />
-                  </svg>
-                )}
-              </button>
-            </div>
-          </div>
+                {item.label}
+              </Link>
+            ))}
+            <Link
+              href="/login"
+              className="mt-2 rounded bg-slate-950 px-2 py-2 text-center text-sm font-semibold text-white"
+              onClick={() => setIsOpen(false)}
+            >
+              로그인
+            </Link>
+          </nav>
         </div>
-      </div>
-
-      {/* 모바일 메뉴 (isOpen 상태에 따라 표시/숨김) */}
-      <div className={`md:hidden ${isOpen ? 'block' : 'hidden'}`}>
-        <a
-          href="#"
-          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-        >
-          Home
-        </a>
-        <a
-          href="#"
-          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-        >
-          About
-        </a>
-        <a
-          href="#"
-          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-        >
-          Services
-        </a>
-        <a
-          href="#"
-          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-        >
-          Contact
-        </a>
-        <div className="my-1 border-t border-gray-200" />
-        <a
-          href="#"
-          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-        >
-          Login
-        </a>
-      </div>
-    </nav>
+      )}
+    </header>
   );
-};
-
-export default Header;
+}

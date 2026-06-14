@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
-
-
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,18 +14,30 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Gymchelin",
-  description: "Gymchelin 웹 애플리케이션",
+  title: "짐슐랭",
+  description: "웨이트 트레이닝 이용자를 위한 헬스장 리뷰와 루틴 커뮤니티",
 };
 
-export default function RootLayout({children,}: Readonly<{children: React.ReactNode;}>) {
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  const adsenseClient = process.env.NEXT_PUBLIC_ADSENSE_CLIENT;
+
   return (
-    <html lang="kr">
-      <head>
-      </head>
-      <body>
+    <html lang="ko">
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         {children}
+        {adsenseClient && (
+          <Script
+            async
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adsenseClient}`}
+            crossOrigin="anonymous"
+            strategy="afterInteractive"
+          />
+        )}
       </body>
-    </html>  
+    </html>
   );
 }

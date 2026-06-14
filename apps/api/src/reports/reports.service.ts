@@ -1,0 +1,117 @@
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { ContentStatus, ReportStatus, ReportTargetType } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
+
+@Injectable()
+export class ReportsService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  create(input: { targetType: string; targetId: number; reason: string; reporterId: number }) {
+    const targetType = this.parseTargetType(input.targetType);
+    const reason = input.reason?.trim();
+
+    if (!reason) {
+      throw new BadRequestException('신고 사유를 입력해 주세요.');
+    }
+
+    return this.prisma.report.create({
+      data: {
+        targetType,
+        targetId: Number(input.targetId),
+        reason,
+        reporterId: input.reporterId,
+      },
+    });
+  }
+
+  findAdminReports(query: { status?: string }) {
+    const status = query.status?.toUpperCase();
+
+    return this.prisma.report.findMany({
+      where: status && Object.values(ReportStatus).includes(status as ReportStatus)
+        ? { status: status as ReportStatus }
+        : undefined,
+      include: { reporter: { select: { id: true, nickname: true, username: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+  }
+
+  async blind(input: {
+    targetType: string;
+    targetId: number;
+    reason?: string;
+    adminId: number;
+  }) {
+    const targetType = this.parseTargetType(input.targetType);
+    const targetId = Number(input.targetId);
+
+    await this.updateTargetStatus(targetType, targetId, ContentStatus.BLINDED);
+
+    const [moderationAction] = await this.prisma.$transaction([
+      this.prisma.moderationAction.create({
+        data: {
+          targetType,
+          targetId,
+          action: 'BLIND',
+          reason: input.reason,
+          adminId: input.adminId,
+        },
+      }),
+      this.prisma.report.updateMany({
+        where: { targetType, targetId, status: ReportStatus.PENDING },
+        data: { status: ReportStatus.RESOLVED, resolvedAt: new Date() },
+      }),
+    ]);
+
+    return moderationAction;
+  }
+
+  private async updateTargetStatus(
+    targetType: ReportTargetType,
+    targetId: number,
+    status: ContentStatus,
+  ) {
+    if (targetType === ReportTargetType.POST) {
+      await this.ensureExists(
+        this.prisma.post.findUnique({ where: { id: targetId }, select: { id: true } }),
+      );
+      return this.prisma.post.update({ where: { id: targetId }, data: { status } });
+    }
+
+    if (targetType === ReportTargetType.COMMENT) {
+      await this.ensureExists(
+        this.prisma.comment.findUnique({ where: { id: targetId }, select: { id: true } }),
+      );
+      return this.prisma.comment.update({ where: { id: targetId }, data: { status } });
+    }
+
+    if (targetType === ReportTargetType.ROUTINE) {
+      await this.ensureExists(
+        this.prisma.routine.findUnique({ where: { id: targetId }, select: { id: true } }),
+      );
+      return this.prisma.routine.update({ where: { id: targetId }, data: { status } });
+    }
+
+    await this.ensureExists(
+      this.prisma.gymReview.findUnique({ where: { id: targetId }, select: { id: true } }),
+    );
+    return this.prisma.gymReview.update({ where: { id: targetId }, data: { status } });
+  }
+
+  private async ensureExists<T>(promise: Promise<T | null>) {
+    const value = await promise;
+    if (!value) {
+      throw new NotFoundException('대상을 찾을 수 없습니다.');
+    }
+  }
+
+  private parseTargetType(value: string) {
+    const targetType = value?.toUpperCase();
+    if (!Object.values(ReportTargetType).includes(targetType as ReportTargetType)) {
+      throw new BadRequestException('지원하지 않는 신고 대상입니다.');
+    }
+
+    return targetType as ReportTargetType;
+  }
+}
