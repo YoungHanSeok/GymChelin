@@ -23,6 +23,13 @@ dist
 # vscode
 .vscode/
 
+# project guides
+*.md
+!README.md
+!apps/**/README.md
+docs/
+apps/**/docs/
+
 # sql
 *.sql
 !apps/api/prisma/migrations/**/*.sql

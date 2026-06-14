@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { AuthProvider, ContentStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -15,58 +19,40 @@ type KakaoPlace = {
   distance?: string;
 };
 
-const DEMO_GYMS: KakaoPlace[] = [
-  {
-    id: 'demo-gangnam',
-    place_name: '짐슐랭 강남 스트렝스',
-    category_name: '스포츠,레저 > 헬스장',
-    address_name: '서울 강남구 테헤란로 123',
-    road_address_name: '서울 강남구 테헤란로 123',
-    phone: '02-000-1000',
-    place_url: 'https://map.kakao.com',
-    x: '127.0276',
-    y: '37.4979',
-  },
-  {
-    id: 'demo-hongdae',
-    place_name: '짐슐랭 홍대 피트니스',
-    category_name: '스포츠,레저 > 헬스장',
-    address_name: '서울 마포구 양화로 45',
-    road_address_name: '서울 마포구 양화로 45',
-    phone: '02-000-2000',
-    place_url: 'https://map.kakao.com',
-    x: '126.9237',
-    y: '37.5563',
-  },
-];
-
 @Injectable()
 export class GymsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async search(query: { query?: string; x?: string; y?: string; radius?: string }) {
+  async search(query: {
+    query?: string;
+    x?: string;
+    y?: string;
+    radius?: string;
+  }) {
     const keyword = query.query?.trim() || '헬스장';
     const kakaoKey = process.env.KAKAO_REST_API_KEY;
 
     if (!kakaoKey) {
       const saved = await this.prisma.gymPlace.findMany({
+        where: {
+          OR: [
+            { name: { contains: keyword, mode: 'insensitive' } },
+            { categoryName: { contains: keyword, mode: 'insensitive' } },
+            { addressName: { contains: keyword, mode: 'insensitive' } },
+            { roadAddressName: { contains: keyword, mode: 'insensitive' } },
+          ],
+        },
         orderBy: [{ reviewCount: 'desc' }, { updatedAt: 'desc' }],
         take: 15,
       });
 
-      if (saved.length > 0) {
-        return {
-          source: 'LOCAL_CACHE',
-          places: saved,
-          notice: 'KAKAO_REST_API_KEY가 없어 저장된 헬스장을 표시합니다.',
-        };
-      }
-
-      const demo = await Promise.all(DEMO_GYMS.map((place) => this.upsertKakaoPlace(place)));
       return {
-        source: 'DEMO',
-        places: demo,
-        notice: 'KAKAO_REST_API_KEY가 없어 데모 헬스장을 표시합니다.',
+        source: 'LOCAL_CACHE',
+        places: saved,
+        notice:
+          saved.length > 0
+            ? 'KAKAO_REST_API_KEY가 없어 저장된 헬스장만 표시합니다.'
+            : 'KAKAO_REST_API_KEY가 없고 저장된 헬스장이 없습니다.',
       };
     }
 
@@ -81,9 +67,12 @@ export class GymsService {
       params.set('radius', query.radius ?? '20000');
     }
 
-    const response = await fetch(`https://dapi.kakao.com/v2/local/search/keyword.json?${params}`, {
-      headers: { Authorization: `KakaoAK ${kakaoKey}` },
-    });
+    const response = await fetch(
+      `https://dapi.kakao.com/v2/local/search/keyword.json?${params}`,
+      {
+        headers: { Authorization: `KakaoAK ${kakaoKey}` },
+      },
+    );
 
     if (!response.ok) {
       throw new BadRequestException('카카오 장소 검색에 실패했습니다.');
@@ -93,7 +82,9 @@ export class GymsService {
     const gymLikePlaces = (data.documents ?? []).filter((place) =>
       `${place.place_name} ${place.category_name ?? ''}`.includes('헬스'),
     );
-    const places = await Promise.all(gymLikePlaces.map((place) => this.upsertKakaoPlace(place)));
+    const places = await Promise.all(
+      gymLikePlaces.map((place) => this.upsertKakaoPlace(place)),
+    );
 
     return {
       source: 'KAKAO',
@@ -108,14 +99,18 @@ export class GymsService {
       include: {
         reviews: {
           where: { status: ContentStatus.ACTIVE },
-          include: { user: { select: { id: true, nickname: true, username: true } } },
+          include: {
+            user: { select: { id: true, nickname: true, username: true } },
+          },
           orderBy: { createdAt: 'desc' },
         },
       },
     });
 
     if (!gym) {
-      throw new NotFoundException('헬스장을 찾을 수 없습니다. 먼저 헬스장 검색을 실행해 주세요.');
+      throw new NotFoundException(
+        '헬스장을 찾을 수 없습니다. 먼저 헬스장 검색을 실행해 주세요.',
+      );
     }
 
     return gym;
@@ -134,17 +129,24 @@ export class GymsService {
     const content = input.content?.trim();
 
     if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
-      throw new BadRequestException('평점은 1점부터 5점까지 입력할 수 있습니다.');
+      throw new BadRequestException(
+        '평점은 1점부터 5점까지 입력할 수 있습니다.',
+      );
     }
 
     if (!content) {
       throw new BadRequestException('리뷰 내용을 입력해 주세요.');
     }
 
-    let gym = await this.prisma.gymPlace.findUnique({ where: { providerPlaceId } });
+    let gym = await this.prisma.gymPlace.findUnique({
+      where: { providerPlaceId },
+    });
 
     if (!gym && input.place) {
-      gym = await this.upsertKakaoPlace({ ...input.place, id: providerPlaceId });
+      gym = await this.upsertKakaoPlace({
+        ...input.place,
+        id: providerPlaceId,
+      });
     }
 
     if (!gym) {
@@ -189,7 +191,9 @@ export class GymsService {
       include: {
         reviews: {
           where: { status: ContentStatus.ACTIVE },
-          include: { user: { select: { id: true, nickname: true, username: true } } },
+          include: {
+            user: { select: { id: true, nickname: true, username: true } },
+          },
           orderBy: { createdAt: 'desc' },
         },
       },

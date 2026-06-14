@@ -14,9 +14,10 @@ const SESSION_COOKIE = 'gymchelin_token';
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 14;
 
 type SessionPayload = {
-  userId: number;
+  sub: number;
   role: string;
   exp: number;
+  jti: string;
 };
 
 type OAuthProfile = {
@@ -41,7 +42,9 @@ export class AuthService {
     const user = await this.usersService.findByEmailOrUsername(input.loginId);
 
     if (!user || !verifyPassword(input.password, user.password)) {
-      throw new UnauthorizedException('아이디 또는 비밀번호가 올바르지 않습니다.');
+      throw new UnauthorizedException(
+        '아이디 또는 비밀번호가 올바르지 않습니다.',
+      );
     }
 
     return this.withToken(this.toPublicUser(user));
@@ -92,11 +95,17 @@ export class AuthService {
     const config = this.getOAuthConfig(provider);
 
     if (!config.clientId || !config.clientSecret || !config.redirectUri) {
-      throw new BadRequestException(`${provider} OAuth 환경변수가 설정되지 않았습니다.`);
+      throw new BadRequestException(
+        `${provider} OAuth 환경변수가 설정되지 않았습니다.`,
+      );
     }
 
     const accessToken = await this.exchangeOAuthCode(config, code);
-    const profile = await this.fetchOAuthProfile(provider, config.userInfoUrl, accessToken);
+    const profile = await this.fetchOAuthProfile(
+      provider,
+      config.userInfoUrl,
+      accessToken,
+    );
     const user = await this.upsertOAuthUser(provider, profile);
 
     return this.withToken(user);
@@ -115,7 +124,7 @@ export class AuthService {
       return null;
     }
 
-    return this.me(payload.userId);
+    return this.me(payload.sub);
   }
 
   createCookieOptions() {
@@ -177,7 +186,9 @@ export class AuthService {
     });
 
     if (!response.ok) {
-      throw new UnauthorizedException('OAuth 사용자 정보를 가져오지 못했습니다.');
+      throw new UnauthorizedException(
+        'OAuth 사용자 정보를 가져오지 못했습니다.',
+      );
     }
 
     const data = (await response.json()) as Record<string, any>;
@@ -186,7 +197,8 @@ export class AuthService {
       return {
         providerUserId: String(data.id),
         email: data.kakao_account?.email,
-        nickname: data.properties?.nickname ?? data.kakao_account?.profile?.nickname,
+        nickname:
+          data.properties?.nickname ?? data.kakao_account?.profile?.nickname,
       };
     }
 
@@ -228,7 +240,9 @@ export class AuthService {
       profile.email?.trim().toLowerCase() ??
       `${provider.toLowerCase()}_${profile.providerUserId}@oauth.gymchelin.local`;
 
-    const existingUser = await this.prisma.user.findUnique({ where: { email } });
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email },
+    });
     if (existingUser) {
       await this.prisma.socialAccount.create({
         data: {
@@ -243,10 +257,14 @@ export class AuthService {
     }
 
     const baseHandle = this.normalizeHandle(
-      profile.nickname ?? email.split('@')[0] ?? `${provider.toLowerCase()}_user`,
+      profile.nickname ??
+        email.split('@')[0] ??
+        `${provider.toLowerCase()}_user`,
     );
     const username = await this.createUniqueHandle(baseHandle);
-    const nickname = await this.createUniqueNickname(profile.nickname ?? username);
+    const nickname = await this.createUniqueNickname(
+      profile.nickname ?? username,
+    );
 
     const user = await this.prisma.user.create({
       data: {
@@ -268,19 +286,26 @@ export class AuthService {
 
   private async createUniqueHandle(base: string) {
     return this.createUniqueValue(base, async (value) => {
-      const user = await this.prisma.user.findUnique({ where: { username: value } });
+      const user = await this.prisma.user.findUnique({
+        where: { username: value },
+      });
       return !!user;
     });
   }
 
   private async createUniqueNickname(base: string) {
     return this.createUniqueValue(base, async (value) => {
-      const user = await this.prisma.user.findUnique({ where: { nickname: value } });
+      const user = await this.prisma.user.findUnique({
+        where: { nickname: value },
+      });
       return !!user;
     });
   }
 
-  private async createUniqueValue(base: string, exists: (value: string) => Promise<boolean>) {
+  private async createUniqueValue(
+    base: string,
+    exists: (value: string) => Promise<boolean>,
+  ) {
     const normalized = this.normalizeHandle(base);
     let candidate = normalized.slice(0, 30) || 'gymchelin';
     let index = 1;
@@ -313,25 +338,42 @@ export class AuthService {
 
   private createToken(input: { userId: number; role: string }) {
     const payload: SessionPayload = {
-      userId: input.userId,
+      sub: input.userId,
       role: input.role,
       exp: Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS,
+      jti: `${input.userId}-${Date.now()}`,
     };
-    const encodedPayload = Buffer.from(JSON.stringify(payload)).toString('base64url');
-    const signature = this.sign(encodedPayload);
+    const header = {
+      alg: 'HS256',
+      typ: 'JWT',
+    };
+    const encodedHeader = Buffer.from(JSON.stringify(header)).toString(
+      'base64url',
+    );
+    const encodedPayload = Buffer.from(JSON.stringify(payload)).toString(
+      'base64url',
+    );
+    const signature = this.sign(`${encodedHeader}.${encodedPayload}`);
 
-    return `${encodedPayload}.${signature}`;
+    return `${encodedHeader}.${encodedPayload}.${signature}`;
   }
 
   private verifyToken(token: string): SessionPayload | null {
-    const [encodedPayload, signature] = token.split('.');
-    if (!encodedPayload || !signature || this.sign(encodedPayload) !== signature) {
+    const [encodedHeader, encodedPayload, signature] = token.split('.');
+    if (
+      !encodedHeader ||
+      !encodedPayload ||
+      !signature ||
+      this.sign(`${encodedHeader}.${encodedPayload}`) !== signature
+    ) {
       return null;
     }
 
     try {
-      const payload = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString()) as SessionPayload;
-      if (!payload.userId || payload.exp < Math.floor(Date.now() / 1000)) {
+      const payload = JSON.parse(
+        Buffer.from(encodedPayload, 'base64url').toString(),
+      ) as SessionPayload;
+      if (!payload.sub || payload.exp < Math.floor(Date.now() / 1000)) {
         return null;
       }
 
@@ -345,26 +387,37 @@ export class AuthService {
     headers?: Record<string, string | string[] | undefined>;
   }) {
     const authorization = request.headers?.authorization;
-    const authorizationValue = Array.isArray(authorization) ? authorization[0] : authorization;
+    const authorizationValue = Array.isArray(authorization)
+      ? authorization[0]
+      : authorization;
 
     if (authorizationValue?.startsWith('Bearer ')) {
       return authorizationValue.slice('Bearer '.length);
     }
 
     const cookieHeader = request.headers?.cookie;
-    const cookieValue = Array.isArray(cookieHeader) ? cookieHeader.join(';') : cookieHeader;
+    const cookieValue = Array.isArray(cookieHeader)
+      ? cookieHeader.join(';')
+      : cookieHeader;
     if (!cookieValue) {
       return null;
     }
 
     const cookies = cookieValue.split(';').map((cookie) => cookie.trim());
-    const tokenCookie = cookies.find((cookie) => cookie.startsWith(`${SESSION_COOKIE}=`));
+    const tokenCookie = cookies.find((cookie) =>
+      cookie.startsWith(`${SESSION_COOKIE}=`),
+    );
 
-    return tokenCookie ? decodeURIComponent(tokenCookie.split('=').slice(1).join('=')) : null;
+    return tokenCookie
+      ? decodeURIComponent(tokenCookie.split('=').slice(1).join('='))
+      : null;
   }
 
   private sign(value: string) {
-    return createHmac('sha256', process.env.AUTH_SECRET ?? 'gymchelin-dev-secret')
+    return createHmac(
+      'sha256',
+      process.env.AUTH_SECRET ?? 'gymchelin-dev-secret',
+    )
       .update(value)
       .digest('base64url');
   }
@@ -388,7 +441,11 @@ export class AuthService {
         tokenUrl: 'https://kauth.kakao.com/oauth/token',
         userInfoUrl: 'https://kapi.kakao.com/v2/user/me',
         authorizationParams: {},
-        requiredEnv: ['KAKAO_CLIENT_ID', 'KAKAO_CLIENT_SECRET', 'KAKAO_REDIRECT_URI'],
+        requiredEnv: [
+          'KAKAO_CLIENT_ID',
+          'KAKAO_CLIENT_SECRET',
+          'KAKAO_REDIRECT_URI',
+        ],
       };
     }
 
@@ -401,7 +458,11 @@ export class AuthService {
         tokenUrl: 'https://nid.naver.com/oauth2.0/token',
         userInfoUrl: 'https://openapi.naver.com/v1/nid/me',
         authorizationParams: { state: 'gymchelin' },
-        requiredEnv: ['NAVER_CLIENT_ID', 'NAVER_CLIENT_SECRET', 'NAVER_REDIRECT_URI'],
+        requiredEnv: [
+          'NAVER_CLIENT_ID',
+          'NAVER_CLIENT_SECRET',
+          'NAVER_REDIRECT_URI',
+        ],
       };
     }
 
@@ -416,7 +477,11 @@ export class AuthService {
         scope: 'openid email profile',
         access_type: 'offline',
       },
-      requiredEnv: ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_REDIRECT_URI'],
+      requiredEnv: [
+        'GOOGLE_CLIENT_ID',
+        'GOOGLE_CLIENT_SECRET',
+        'GOOGLE_REDIRECT_URI',
+      ],
     };
   }
 

@@ -1,6 +1,24 @@
 import AdSlot from "@/components/ads/AdSlot";
-import { sampleGyms } from "@/lib/mock-data";
+import { authorName, formatDateLabel, type ApiGym } from "@/lib/community-types";
 import Link from "next/link";
+
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001/api";
+
+const getGym = async (providerPlaceId: string): Promise<ApiGym | null> => {
+  try {
+    const response = await fetch(`${apiBaseUrl}/gyms/${encodeURIComponent(providerPlaceId)}`, {
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    return (await response.json()) as ApiGym;
+  } catch {
+    return null;
+  }
+};
 
 export default async function GymDetailPage({
   params,
@@ -8,9 +26,21 @@ export default async function GymDetailPage({
   params: Promise<{ providerPlaceId: string }>;
 }) {
   const { providerPlaceId } = await params;
-  const gym =
-    sampleGyms.find((item) => item.providerPlaceId === decodeURIComponent(providerPlaceId)) ??
-    sampleGyms[0];
+  const gym = await getGym(decodeURIComponent(providerPlaceId));
+
+  if (!gym) {
+    return (
+      <div className="space-y-4">
+        <Link href="/gyms" className="text-sm font-medium text-emerald-700 hover:text-emerald-900">
+          헬스장 목록
+        </Link>
+        <div className="border-b border-slate-200 pb-5">
+          <h1 className="text-2xl font-black text-slate-950">헬스장을 찾을 수 없습니다</h1>
+          <p className="mt-2 text-sm text-slate-600">검색 화면에서 헬스장을 먼저 조회해 주세요.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_240px]">
@@ -60,7 +90,22 @@ export default async function GymDetailPage({
 
         <section className="border-b border-slate-200 pb-5">
           <h2 className="text-base font-semibold text-slate-950">최근 리뷰</h2>
-          <p className="mt-3 text-sm text-slate-500">아직 화면에 연결된 리뷰가 없습니다. API 연동 후 최신 리뷰가 표시됩니다.</p>
+          {gym.reviews && gym.reviews.length > 0 ? (
+            <div className="mt-3 divide-y divide-slate-100">
+              {gym.reviews.map((review) => (
+                <article key={review.id} className="py-4">
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                    <strong className="text-sm text-slate-950">{review.rating.toFixed(1)}점</strong>
+                    <span>{authorName(review.user)}</span>
+                    <span>{formatDateLabel(review.createdAt)}</span>
+                  </div>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">{review.content}</p>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-3 text-sm text-slate-500">아직 등록된 리뷰가 없습니다.</p>
+          )}
         </section>
       </div>
 

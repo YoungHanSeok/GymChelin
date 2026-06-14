@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { PostPreview } from "@/lib/mock-data";
+import type { PostPreview } from "@/lib/community-types";
 
 const categoryLabel = {
   FREE: "자유게시판",
@@ -26,39 +26,43 @@ export default function PostList({
         )}
       </div>
       <div className="divide-y divide-slate-100">
-        {posts.map((post) => (
-          <article key={`${post.category}-${post.id}`} className="py-4">
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0">
-                <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                  <span className="font-medium text-emerald-700">{categoryLabel[post.category]}</span>
-                  <span>{post.author}</span>
-                  <span>{post.createdAt}</span>
+        {posts.length === 0 ? (
+          <p className="py-6 text-sm text-slate-500">아직 표시할 글이 없습니다.</p>
+        ) : (
+          posts.map((post) => (
+            <article key={`${post.category}-${post.id}`} className="py-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                    <span className="font-medium text-emerald-700">{categoryLabel[post.category]}</span>
+                    <span>{post.author}</span>
+                    <span>{post.createdAt}</span>
+                  </div>
+                  <Link href={`/boards/${post.category === "FREE" ? "free" : "workout-log"}`} className="block">
+                    <h3 className="truncate text-base font-semibold text-slate-900 hover:text-emerald-700">
+                      {post.title}
+                    </h3>
+                  </Link>
+                  <p className="mt-1 line-clamp-2 text-sm leading-6 text-slate-600">{post.excerpt}</p>
                 </div>
-                <Link href={`/boards/${post.category === "FREE" ? "free" : "workout-log"}`} className="block">
-                  <h3 className="truncate text-base font-semibold text-slate-900 hover:text-emerald-700">
-                    {post.title}
-                  </h3>
-                </Link>
-                <p className="mt-1 line-clamp-2 text-sm leading-6 text-slate-600">{post.excerpt}</p>
+                <div className="grid min-w-24 grid-cols-3 gap-2 text-center text-xs text-slate-500">
+                  <span>
+                    <strong className="block text-sm text-slate-900">{post.likeCount}</strong>
+                    추천
+                  </span>
+                  <span>
+                    <strong className="block text-sm text-slate-900">{post.commentCount}</strong>
+                    댓글
+                  </span>
+                  <span>
+                    <strong className="block text-sm text-slate-900">{post.viewCount}</strong>
+                    조회
+                  </span>
+                </div>
               </div>
-              <div className="grid min-w-24 grid-cols-3 gap-2 text-center text-xs text-slate-500">
-                <span>
-                  <strong className="block text-sm text-slate-900">{post.likeCount}</strong>
-                  추천
-                </span>
-                <span>
-                  <strong className="block text-sm text-slate-900">{post.commentCount}</strong>
-                  댓글
-                </span>
-                <span>
-                  <strong className="block text-sm text-slate-900">{post.viewCount}</strong>
-                  조회
-                </span>
-              </div>
-            </div>
-          </article>
-        ))}
+            </article>
+          ))
+        )}
       </div>
     </section>
   );

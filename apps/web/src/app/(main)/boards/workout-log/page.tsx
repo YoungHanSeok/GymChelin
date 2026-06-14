@@ -1,10 +1,40 @@
+"use client";
+
 import AdSlot from "@/components/ads/AdSlot";
 import PostList from "@/components/community/PostList";
-import { samplePosts } from "@/lib/mock-data";
+import api from "@/lib/api";
+import { type ApiPost, type PostPreview, toPostPreview } from "@/lib/community-types";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
 export default function WorkoutLogPage() {
-  const posts = samplePosts.filter((post) => post.category === "WORKOUT_LOG");
+  const [posts, setPosts] = useState<PostPreview[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadPosts = async () => {
+      try {
+        const response = await api.get<ApiPost[]>("/posts", {
+          params: { category: "WORKOUT_LOG" },
+        });
+
+        if (isMounted) {
+          setPosts(response.data.map(toPostPreview));
+        }
+      } catch {
+        if (isMounted) {
+          setPosts([]);
+        }
+      }
+    };
+
+    void loadPosts();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   return (
     <div className="space-y-6">

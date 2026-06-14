@@ -10,6 +10,8 @@ datasource db {
 enum UserRole {
   USER
   ADMIN
+
+  @@map("user_role")
 }
 
 enum AuthProvider {
@@ -17,17 +19,23 @@ enum AuthProvider {
   KAKAO
   NAVER
   GOOGLE
+
+  @@map("auth_provider")
 }
 
 enum ContentStatus {
   ACTIVE
   BLINDED
   DELETED
+
+  @@map("content_status")
 }
 
 enum PostCategory {
   FREE
   WORKOUT_LOG
+
+  @@map("post_category")
 }
 
 enum ReportTargetType {
@@ -35,12 +43,16 @@ enum ReportTargetType {
   COMMENT
   ROUTINE
   GYM_REVIEW
+
+  @@map("report_target_type")
 }
 
 enum ReportStatus {
   PENDING
   RESOLVED
   REJECTED
+
+  @@map("report_status")
 }
 
 enum AdSlot {
@@ -49,6 +61,8 @@ enum AdSlot {
   MAIN_RIGHT
   POST_LIST_INLINE
   GYM_DETAIL_SIDE
+
+  @@map("ad_slot")
 }
 
 model User {
@@ -58,11 +72,11 @@ model User {
   password       String?
   nickname       String             @unique @db.VarChar(30)
   role           UserRole           @default(USER)
-  passwordReset  String             @default("N") @db.Char(1)
-  deleteYN       String             @default("N") @db.Char(1)
-  changePwAt     DateTime           @default(now())
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
+  passwordReset  String             @default("N") @map("password_reset") @db.Char(1)
+  deleteYN       String             @default("N") @map("delete_yn") @db.Char(1)
+  changePwAt     DateTime           @default(now()) @map("change_pw_at")
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
   socialAccounts SocialAccount[]
   posts          Post[]
   comments       Comment[]
@@ -79,13 +93,14 @@ model User {
 model SocialAccount {
   id             Int          @id @default(autoincrement())
   provider       AuthProvider
-  providerUserId String
+  providerUserId String       @map("provider_user_id")
   email          String?
-  userId         Int
-  createdAt      DateTime     @default(now())
+  userId         Int          @map("user_id")
+  createdAt      DateTime     @default(now()) @map("created_at")
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerUserId])
+  @@map("social_accounts")
 }
 
 model Post {
@@ -94,40 +109,43 @@ model Post {
   title     String        @db.VarChar(180)
   content   String
   status    ContentStatus @default(ACTIVE)
-  viewCount Int           @default(0)
-  authorId  Int
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  viewCount Int           @default(0) @map("view_count")
+  authorId  Int           @map("author_id")
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
   author    User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
   comments  Comment[]
   reactions Reaction[]
 
   @@index([category, status, createdAt])
+  @@map("posts")
 }
 
 model Comment {
   id        Int           @id @default(autoincrement())
   content   String
   status    ContentStatus @default(ACTIVE)
-  postId    Int
-  authorId  Int
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  postId    Int           @map("post_id")
+  authorId  Int           @map("author_id")
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
   post      Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
   author    User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
   @@index([postId, status, createdAt])
+  @@map("comments")
 }
 
 model Reaction {
   id        Int      @id @default(autoincrement())
-  postId    Int
-  userId    Int
-  createdAt DateTime @default(now())
+  postId    Int      @map("post_id")
+  userId    Int      @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
   post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([postId, userId])
+  @@map("reactions")
 }
 
 model Routine {
@@ -136,64 +154,69 @@ model Routine {
   summary   String        @db.VarChar(240)
   content   String
   status    ContentStatus @default(ACTIVE)
-  likeCount Int           @default(0)
-  viewCount Int           @default(0)
-  authorId  Int
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  likeCount Int           @default(0) @map("like_count")
+  viewCount Int           @default(0) @map("view_count")
+  authorId  Int           @map("author_id")
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
   author    User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
   likes     RoutineLike[]
 
   @@index([status, likeCount, createdAt])
+  @@map("routines")
 }
 
 model RoutineLike {
   id        Int      @id @default(autoincrement())
-  routineId Int
-  userId    Int
-  createdAt DateTime @default(now())
+  routineId Int      @map("routine_id")
+  userId    Int      @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
   routine   Routine  @relation(fields: [routineId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([routineId, userId])
+  @@map("routine_likes")
 }
 
 model ExerciseWiki {
   id            Int      @id @default(autoincrement())
   slug          String   @unique
   name          String   @db.VarChar(80)
-  targetMuscles String[]
+  targetMuscles String[] @map("target_muscles")
   equipment     String?
   difficulty    String   @db.VarChar(30)
   description   String
-  howTo         String[]
+  howTo         String[] @map("how_to")
   effects       String[]
   cautions      String[]
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
   @@index([name])
+  @@map("exercise_wikis")
 }
 
 model GymPlace {
-  id                   Int         @id @default(autoincrement())
+  id                   Int          @id @default(autoincrement())
   provider             AuthProvider @default(KAKAO)
-  providerPlaceId      String      @unique
-  name                 String      @db.VarChar(160)
-  categoryName         String?
-  addressName          String?
-  roadAddressName      String?
+  providerPlaceId      String       @unique @map("provider_place_id")
+  name                 String       @db.VarChar(160)
+  categoryName         String?      @map("category_name")
+  addressName          String?      @map("address_name")
+  roadAddressName      String?      @map("road_address_name")
   phone                String?
-  placeUrl             String?
+  placeUrl             String?      @map("place_url")
   longitude            Float?
   latitude             Float?
-  externalRating       Float?
-  externalRatingSource String?
-  avgRating            Float       @default(0)
-  reviewCount          Int         @default(0)
-  createdAt            DateTime    @default(now())
-  updatedAt            DateTime    @updatedAt
+  externalRating       Float?       @map("external_rating")
+  externalRatingSource String?      @map("external_rating_source")
+  avgRating            Float        @default(0) @map("avg_rating")
+  reviewCount          Int          @default(0) @map("review_count")
+  createdAt            DateTime     @default(now()) @map("created_at")
+  updatedAt            DateTime     @updatedAt @map("updated_at")
   reviews              GymReview[]
+
+  @@map("gym_places")
 }
 
 model GymReview {
@@ -201,68 +224,74 @@ model GymReview {
   rating    Int
   content   String
   status    ContentStatus @default(ACTIVE)
-  gymId     Int
-  userId    Int
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  gymId     Int           @map("gym_id")
+  userId    Int           @map("user_id")
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
   gym       GymPlace      @relation(fields: [gymId], references: [id], onDelete: Cascade)
   user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([gymId, userId])
   @@index([gymId, status, createdAt])
+  @@map("gym_reviews")
 }
 
 model Report {
   id         Int              @id @default(autoincrement())
-  targetType ReportTargetType
-  targetId   Int
+  targetType ReportTargetType @map("target_type")
+  targetId   Int              @map("target_id")
   reason     String
   status     ReportStatus     @default(PENDING)
-  reporterId Int
-  createdAt  DateTime         @default(now())
-  resolvedAt DateTime?
+  reporterId Int              @map("reporter_id")
+  createdAt  DateTime         @default(now()) @map("created_at")
+  resolvedAt DateTime?        @map("resolved_at")
   reporter   User             @relation("ReporterReports", fields: [reporterId], references: [id], onDelete: Cascade)
 
   @@index([targetType, targetId, status])
+  @@map("reports")
 }
 
 model ModerationAction {
   id         Int              @id @default(autoincrement())
-  targetType ReportTargetType
-  targetId   Int
+  targetType ReportTargetType @map("target_type")
+  targetId   Int              @map("target_id")
   action     String           @db.VarChar(40)
   reason     String?
-  adminId    Int
-  createdAt  DateTime         @default(now())
+  adminId    Int              @map("admin_id")
+  createdAt  DateTime         @default(now()) @map("created_at")
   admin      User             @relation("AdminModerationActions", fields: [adminId], references: [id], onDelete: Cascade)
 
   @@index([targetType, targetId])
+  @@map("moderation_actions")
 }
 
 model AdPlacement {
   id            Int      @id @default(autoincrement())
   slot          AdSlot   @unique
-  adsenseClient String?
-  adsenseSlot   String?
+  adsenseClient String?  @map("adsense_client")
+  adsenseSlot   String?  @map("adsense_slot")
   enabled       Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("ad_placements")
 }
 
 model DirectBanner {
   id          Int      @id @default(autoincrement())
   slot        AdSlot
   title       String   @db.VarChar(120)
-  imageUrl    String
-  linkUrl     String
-  startsAt    DateTime
-  endsAt      DateTime
+  imageUrl    String   @map("image_url")
+  linkUrl     String   @map("link_url")
+  startsAt    DateTime @map("starts_at")
+  endsAt      DateTime @map("ends_at")
   priority    Int      @default(0)
   impressions Int      @default(0)
   clicks      Int      @default(0)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   @@index([slot, isActive, startsAt, endsAt, priority])
+  @@map("direct_banners")
 }

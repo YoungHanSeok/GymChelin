@@ -1,9 +1,9 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import api from "@/lib/api";
-import { sampleGyms, type GymPreview } from "@/lib/mock-data";
+import type { GymPreview } from "@/lib/community-types";
 
 type GymSearchResponse = {
   source: string;
@@ -14,25 +14,33 @@ type GymSearchResponse = {
 export default function GymsPage() {
   const [query, setQuery] = useState("헬스장");
   const [notice, setNotice] = useState("카카오맵 장소 검색을 기반으로 헬스장을 찾습니다.");
-  const [gyms, setGyms] = useState<GymPreview[]>(sampleGyms);
+  const [gyms, setGyms] = useState<GymPreview[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const search = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const runSearch = useCallback(async (keyword: string) => {
     setIsLoading(true);
 
     try {
       const response = await api.get<GymSearchResponse>("/gyms/search", {
-        params: { query },
+        params: { query: keyword },
       });
       setGyms(response.data.places);
       setNotice(response.data.notice ?? `${response.data.source} 검색 결과입니다.`);
     } catch {
-      setGyms(sampleGyms);
-      setNotice("API 연결이 없어 샘플 헬스장을 표시합니다.");
+      setGyms([]);
+      setNotice("헬스장 검색 API에 연결하지 못했습니다.");
     } finally {
       setIsLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    void runSearch("헬스장");
+  }, [runSearch]);
+
+  const search = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    await runSearch(query);
   };
 
   return (
@@ -59,25 +67,29 @@ export default function GymsPage() {
       <p className="text-sm text-slate-500">{notice}</p>
 
       <div className="divide-y divide-slate-100 border-b border-slate-200">
-        {gyms.map((gym) => (
-          <article key={gym.providerPlaceId} className="grid gap-4 py-5 md:grid-cols-[minmax(0,1fr)_140px]">
-            <div className="min-w-0">
-              <Link href={`/gyms/${encodeURIComponent(gym.providerPlaceId)}`}>
-                <h2 className="truncate text-lg font-bold text-slate-950 hover:text-emerald-700">{gym.name}</h2>
-              </Link>
-              <p className="mt-1 text-sm text-slate-600">{gym.addressName}</p>
-              <p className="mt-2 text-xs text-slate-500">
-                외부 평점은 공식 API로 제공되는 범위에서만 표기하며, 크롤링하지 않습니다.
-              </p>
-            </div>
-            <div className="flex items-center justify-start md:justify-end">
-              <div className="text-left md:text-right">
-                <strong className="block text-xl font-black text-slate-950">{gym.avgRating.toFixed(1)}</strong>
-                <span className="text-xs text-slate-500">짐슐랭 리뷰 {gym.reviewCount}개</span>
+        {gyms.length === 0 ? (
+          <p className="py-6 text-sm text-slate-500">검색 결과가 없습니다.</p>
+        ) : (
+          gyms.map((gym) => (
+            <article key={gym.providerPlaceId} className="grid gap-4 py-5 md:grid-cols-[minmax(0,1fr)_140px]">
+              <div className="min-w-0">
+                <Link href={`/gyms/${encodeURIComponent(gym.providerPlaceId)}`}>
+                  <h2 className="truncate text-lg font-bold text-slate-950 hover:text-emerald-700">{gym.name}</h2>
+                </Link>
+                <p className="mt-1 text-sm text-slate-600">{gym.addressName}</p>
+                <p className="mt-2 text-xs text-slate-500">
+                  외부 평점은 공식 API로 제공되는 범위에서만 표기하며, 크롤링하지 않습니다.
+                </p>
               </div>
-            </div>
-          </article>
-        ))}
+              <div className="flex items-center justify-start md:justify-end">
+                <div className="text-left md:text-right">
+                  <strong className="block text-xl font-black text-slate-950">{gym.avgRating.toFixed(1)}</strong>
+                  <span className="text-xs text-slate-500">짐슐랭 리뷰 {gym.reviewCount}개</span>
+                </div>
+              </div>
+            </article>
+          ))
+        )}
       </div>
     </div>
   );

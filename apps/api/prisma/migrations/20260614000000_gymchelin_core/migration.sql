@@ -1,23 +1,23 @@
 -- CreateEnum
-CREATE TYPE "UserRole" AS ENUM ('USER', 'ADMIN');
+CREATE TYPE "user_role" AS ENUM ('USER', 'ADMIN');
 
 -- CreateEnum
-CREATE TYPE "AuthProvider" AS ENUM ('LOCAL', 'KAKAO', 'NAVER', 'GOOGLE');
+CREATE TYPE "auth_provider" AS ENUM ('LOCAL', 'KAKAO', 'NAVER', 'GOOGLE');
 
 -- CreateEnum
-CREATE TYPE "ContentStatus" AS ENUM ('ACTIVE', 'BLINDED', 'DELETED');
+CREATE TYPE "content_status" AS ENUM ('ACTIVE', 'BLINDED', 'DELETED');
 
 -- CreateEnum
-CREATE TYPE "PostCategory" AS ENUM ('FREE', 'WORKOUT_LOG');
+CREATE TYPE "post_category" AS ENUM ('FREE', 'WORKOUT_LOG');
 
 -- CreateEnum
-CREATE TYPE "ReportTargetType" AS ENUM ('POST', 'COMMENT', 'ROUTINE', 'GYM_REVIEW');
+CREATE TYPE "report_target_type" AS ENUM ('POST', 'COMMENT', 'ROUTINE', 'GYM_REVIEW');
 
 -- CreateEnum
-CREATE TYPE "ReportStatus" AS ENUM ('PENDING', 'RESOLVED', 'REJECTED');
+CREATE TYPE "report_status" AS ENUM ('PENDING', 'RESOLVED', 'REJECTED');
 
 -- CreateEnum
-CREATE TYPE "AdSlot" AS ENUM ('MAIN_TOP', 'MAIN_LEFT', 'MAIN_RIGHT', 'POST_LIST_INLINE', 'GYM_DETAIL_SIDE');
+CREATE TYPE "ad_slot" AS ENUM ('MAIN_TOP', 'MAIN_LEFT', 'MAIN_RIGHT', 'POST_LIST_INLINE', 'GYM_DETAIL_SIDE');
 
 -- CreateTable
 CREATE TABLE "users" (
@@ -26,204 +26,204 @@ CREATE TABLE "users" (
     "username" VARCHAR(30) NOT NULL,
     "password" TEXT,
     "nickname" VARCHAR(30) NOT NULL,
-    "role" "UserRole" NOT NULL DEFAULT 'USER',
-    "passwordReset" CHAR(1) NOT NULL DEFAULT 'N',
-    "deleteYN" CHAR(1) NOT NULL DEFAULT 'N',
-    "changePwAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "role" "user_role" NOT NULL DEFAULT 'USER',
+    "password_reset" CHAR(1) NOT NULL DEFAULT 'N',
+    "delete_yn" CHAR(1) NOT NULL DEFAULT 'N',
+    "change_pw_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "users_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "SocialAccount" (
+CREATE TABLE "social_accounts" (
     "id" SERIAL NOT NULL,
-    "provider" "AuthProvider" NOT NULL,
-    "providerUserId" TEXT NOT NULL,
+    "provider" "auth_provider" NOT NULL,
+    "provider_user_id" TEXT NOT NULL,
     "email" TEXT,
-    "userId" INTEGER NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "user_id" INTEGER NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "SocialAccount_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "social_accounts_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "Post" (
+CREATE TABLE "posts" (
     "id" SERIAL NOT NULL,
-    "category" "PostCategory" NOT NULL,
+    "category" "post_category" NOT NULL,
     "title" VARCHAR(180) NOT NULL,
     "content" TEXT NOT NULL,
-    "status" "ContentStatus" NOT NULL DEFAULT 'ACTIVE',
-    "viewCount" INTEGER NOT NULL DEFAULT 0,
-    "authorId" INTEGER NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "status" "content_status" NOT NULL DEFAULT 'ACTIVE',
+    "view_count" INTEGER NOT NULL DEFAULT 0,
+    "author_id" INTEGER NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "Post_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "posts_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "Comment" (
+CREATE TABLE "comments" (
     "id" SERIAL NOT NULL,
     "content" TEXT NOT NULL,
-    "status" "ContentStatus" NOT NULL DEFAULT 'ACTIVE',
-    "postId" INTEGER NOT NULL,
-    "authorId" INTEGER NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "status" "content_status" NOT NULL DEFAULT 'ACTIVE',
+    "post_id" INTEGER NOT NULL,
+    "author_id" INTEGER NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "Comment_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "comments_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "Reaction" (
+CREATE TABLE "reactions" (
     "id" SERIAL NOT NULL,
-    "postId" INTEGER NOT NULL,
-    "userId" INTEGER NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "post_id" INTEGER NOT NULL,
+    "user_id" INTEGER NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "Reaction_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "reactions_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "Routine" (
+CREATE TABLE "routines" (
     "id" SERIAL NOT NULL,
     "title" VARCHAR(180) NOT NULL,
     "summary" VARCHAR(240) NOT NULL,
     "content" TEXT NOT NULL,
-    "status" "ContentStatus" NOT NULL DEFAULT 'ACTIVE',
-    "likeCount" INTEGER NOT NULL DEFAULT 0,
-    "viewCount" INTEGER NOT NULL DEFAULT 0,
-    "authorId" INTEGER NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "status" "content_status" NOT NULL DEFAULT 'ACTIVE',
+    "like_count" INTEGER NOT NULL DEFAULT 0,
+    "view_count" INTEGER NOT NULL DEFAULT 0,
+    "author_id" INTEGER NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "Routine_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "routines_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "RoutineLike" (
+CREATE TABLE "routine_likes" (
     "id" SERIAL NOT NULL,
-    "routineId" INTEGER NOT NULL,
-    "userId" INTEGER NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "routine_id" INTEGER NOT NULL,
+    "user_id" INTEGER NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "RoutineLike_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "routine_likes_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "ExerciseWiki" (
+CREATE TABLE "exercise_wikis" (
     "id" SERIAL NOT NULL,
     "slug" TEXT NOT NULL,
     "name" VARCHAR(80) NOT NULL,
-    "targetMuscles" TEXT[],
+    "target_muscles" TEXT[],
     "equipment" TEXT,
     "difficulty" VARCHAR(30) NOT NULL,
     "description" TEXT NOT NULL,
-    "howTo" TEXT[],
+    "how_to" TEXT[],
     "effects" TEXT[],
     "cautions" TEXT[],
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "ExerciseWiki_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "exercise_wikis_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "GymPlace" (
+CREATE TABLE "gym_places" (
     "id" SERIAL NOT NULL,
-    "provider" "AuthProvider" NOT NULL DEFAULT 'KAKAO',
-    "providerPlaceId" TEXT NOT NULL,
+    "provider" "auth_provider" NOT NULL DEFAULT 'KAKAO',
+    "provider_place_id" TEXT NOT NULL,
     "name" VARCHAR(160) NOT NULL,
-    "categoryName" TEXT,
-    "addressName" TEXT,
-    "roadAddressName" TEXT,
+    "category_name" TEXT,
+    "address_name" TEXT,
+    "road_address_name" TEXT,
     "phone" TEXT,
-    "placeUrl" TEXT,
+    "place_url" TEXT,
     "longitude" DOUBLE PRECISION,
     "latitude" DOUBLE PRECISION,
-    "externalRating" DOUBLE PRECISION,
-    "externalRatingSource" TEXT,
-    "avgRating" DOUBLE PRECISION NOT NULL DEFAULT 0,
-    "reviewCount" INTEGER NOT NULL DEFAULT 0,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "external_rating" DOUBLE PRECISION,
+    "external_rating_source" TEXT,
+    "avg_rating" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "review_count" INTEGER NOT NULL DEFAULT 0,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "GymPlace_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "gym_places_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "GymReview" (
+CREATE TABLE "gym_reviews" (
     "id" SERIAL NOT NULL,
     "rating" INTEGER NOT NULL,
     "content" TEXT NOT NULL,
-    "status" "ContentStatus" NOT NULL DEFAULT 'ACTIVE',
-    "gymId" INTEGER NOT NULL,
-    "userId" INTEGER NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "status" "content_status" NOT NULL DEFAULT 'ACTIVE',
+    "gym_id" INTEGER NOT NULL,
+    "user_id" INTEGER NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "GymReview_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "gym_reviews_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "Report" (
+CREATE TABLE "reports" (
     "id" SERIAL NOT NULL,
-    "targetType" "ReportTargetType" NOT NULL,
-    "targetId" INTEGER NOT NULL,
+    "target_type" "report_target_type" NOT NULL,
+    "target_id" INTEGER NOT NULL,
     "reason" TEXT NOT NULL,
-    "status" "ReportStatus" NOT NULL DEFAULT 'PENDING',
-    "reporterId" INTEGER NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "resolvedAt" TIMESTAMP(3),
+    "status" "report_status" NOT NULL DEFAULT 'PENDING',
+    "reporter_id" INTEGER NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "resolved_at" TIMESTAMP(3),
 
-    CONSTRAINT "Report_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "reports_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "ModerationAction" (
+CREATE TABLE "moderation_actions" (
     "id" SERIAL NOT NULL,
-    "targetType" "ReportTargetType" NOT NULL,
-    "targetId" INTEGER NOT NULL,
+    "target_type" "report_target_type" NOT NULL,
+    "target_id" INTEGER NOT NULL,
     "action" VARCHAR(40) NOT NULL,
     "reason" TEXT,
-    "adminId" INTEGER NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "admin_id" INTEGER NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "ModerationAction_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "moderation_actions_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "AdPlacement" (
+CREATE TABLE "ad_placements" (
     "id" SERIAL NOT NULL,
-    "slot" "AdSlot" NOT NULL,
-    "adsenseClient" TEXT,
-    "adsenseSlot" TEXT,
+    "slot" "ad_slot" NOT NULL,
+    "adsense_client" TEXT,
+    "adsense_slot" TEXT,
     "enabled" BOOLEAN NOT NULL DEFAULT true,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "AdPlacement_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "ad_placements_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "DirectBanner" (
+CREATE TABLE "direct_banners" (
     "id" SERIAL NOT NULL,
-    "slot" "AdSlot" NOT NULL,
+    "slot" "ad_slot" NOT NULL,
     "title" VARCHAR(120) NOT NULL,
-    "imageUrl" TEXT NOT NULL,
-    "linkUrl" TEXT NOT NULL,
-    "startsAt" TIMESTAMP(3) NOT NULL,
-    "endsAt" TIMESTAMP(3) NOT NULL,
+    "image_url" TEXT NOT NULL,
+    "link_url" TEXT NOT NULL,
+    "starts_at" TIMESTAMP(3) NOT NULL,
+    "ends_at" TIMESTAMP(3) NOT NULL,
     "priority" INTEGER NOT NULL DEFAULT 0,
     "impressions" INTEGER NOT NULL DEFAULT 0,
     "clicks" INTEGER NOT NULL DEFAULT 0,
-    "isActive" BOOLEAN NOT NULL DEFAULT true,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "is_active" BOOLEAN NOT NULL DEFAULT true,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "DirectBanner_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "direct_banners_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -236,85 +236,85 @@ CREATE UNIQUE INDEX "users_username_key" ON "users"("username");
 CREATE UNIQUE INDEX "users_nickname_key" ON "users"("nickname");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "SocialAccount_provider_providerUserId_key" ON "SocialAccount"("provider", "providerUserId");
+CREATE UNIQUE INDEX "social_accounts_provider_provider_user_id_key" ON "social_accounts"("provider", "provider_user_id");
 
 -- CreateIndex
-CREATE INDEX "Post_category_status_createdAt_idx" ON "Post"("category", "status", "createdAt");
+CREATE INDEX "posts_category_status_created_at_idx" ON "posts"("category", "status", "created_at");
 
 -- CreateIndex
-CREATE INDEX "Comment_postId_status_createdAt_idx" ON "Comment"("postId", "status", "createdAt");
+CREATE INDEX "comments_post_id_status_created_at_idx" ON "comments"("post_id", "status", "created_at");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Reaction_postId_userId_key" ON "Reaction"("postId", "userId");
+CREATE UNIQUE INDEX "reactions_post_id_user_id_key" ON "reactions"("post_id", "user_id");
 
 -- CreateIndex
-CREATE INDEX "Routine_status_likeCount_createdAt_idx" ON "Routine"("status", "likeCount", "createdAt");
+CREATE INDEX "routines_status_like_count_created_at_idx" ON "routines"("status", "like_count", "created_at");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "RoutineLike_routineId_userId_key" ON "RoutineLike"("routineId", "userId");
+CREATE UNIQUE INDEX "routine_likes_routine_id_user_id_key" ON "routine_likes"("routine_id", "user_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "ExerciseWiki_slug_key" ON "ExerciseWiki"("slug");
+CREATE UNIQUE INDEX "exercise_wikis_slug_key" ON "exercise_wikis"("slug");
 
 -- CreateIndex
-CREATE INDEX "ExerciseWiki_name_idx" ON "ExerciseWiki"("name");
+CREATE INDEX "exercise_wikis_name_idx" ON "exercise_wikis"("name");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "GymPlace_providerPlaceId_key" ON "GymPlace"("providerPlaceId");
+CREATE UNIQUE INDEX "gym_places_provider_place_id_key" ON "gym_places"("provider_place_id");
 
 -- CreateIndex
-CREATE INDEX "GymReview_gymId_status_createdAt_idx" ON "GymReview"("gymId", "status", "createdAt");
+CREATE INDEX "gym_reviews_gym_id_status_created_at_idx" ON "gym_reviews"("gym_id", "status", "created_at");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "GymReview_gymId_userId_key" ON "GymReview"("gymId", "userId");
+CREATE UNIQUE INDEX "gym_reviews_gym_id_user_id_key" ON "gym_reviews"("gym_id", "user_id");
 
 -- CreateIndex
-CREATE INDEX "Report_targetType_targetId_status_idx" ON "Report"("targetType", "targetId", "status");
+CREATE INDEX "reports_target_type_target_id_status_idx" ON "reports"("target_type", "target_id", "status");
 
 -- CreateIndex
-CREATE INDEX "ModerationAction_targetType_targetId_idx" ON "ModerationAction"("targetType", "targetId");
+CREATE INDEX "moderation_actions_target_type_target_id_idx" ON "moderation_actions"("target_type", "target_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "AdPlacement_slot_key" ON "AdPlacement"("slot");
+CREATE UNIQUE INDEX "ad_placements_slot_key" ON "ad_placements"("slot");
 
 -- CreateIndex
-CREATE INDEX "DirectBanner_slot_isActive_startsAt_endsAt_priority_idx" ON "DirectBanner"("slot", "isActive", "startsAt", "endsAt", "priority");
+CREATE INDEX "direct_banners_slot_is_active_starts_at_ends_at_priority_idx" ON "direct_banners"("slot", "is_active", "starts_at", "ends_at", "priority");
 
 -- AddForeignKey
-ALTER TABLE "SocialAccount" ADD CONSTRAINT "SocialAccount_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "social_accounts" ADD CONSTRAINT "social_accounts_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Post" ADD CONSTRAINT "Post_authorId_fkey" FOREIGN KEY ("authorId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "posts" ADD CONSTRAINT "posts_author_id_fkey" FOREIGN KEY ("author_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Comment" ADD CONSTRAINT "Comment_postId_fkey" FOREIGN KEY ("postId") REFERENCES "Post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "comments" ADD CONSTRAINT "comments_post_id_fkey" FOREIGN KEY ("post_id") REFERENCES "posts"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Comment" ADD CONSTRAINT "Comment_authorId_fkey" FOREIGN KEY ("authorId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "comments" ADD CONSTRAINT "comments_author_id_fkey" FOREIGN KEY ("author_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Reaction" ADD CONSTRAINT "Reaction_postId_fkey" FOREIGN KEY ("postId") REFERENCES "Post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "reactions" ADD CONSTRAINT "reactions_post_id_fkey" FOREIGN KEY ("post_id") REFERENCES "posts"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Reaction" ADD CONSTRAINT "Reaction_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "reactions" ADD CONSTRAINT "reactions_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Routine" ADD CONSTRAINT "Routine_authorId_fkey" FOREIGN KEY ("authorId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "routines" ADD CONSTRAINT "routines_author_id_fkey" FOREIGN KEY ("author_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "RoutineLike" ADD CONSTRAINT "RoutineLike_routineId_fkey" FOREIGN KEY ("routineId") REFERENCES "Routine"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "routine_likes" ADD CONSTRAINT "routine_likes_routine_id_fkey" FOREIGN KEY ("routine_id") REFERENCES "routines"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "RoutineLike" ADD CONSTRAINT "RoutineLike_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "routine_likes" ADD CONSTRAINT "routine_likes_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "GymReview" ADD CONSTRAINT "GymReview_gymId_fkey" FOREIGN KEY ("gymId") REFERENCES "GymPlace"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "gym_reviews" ADD CONSTRAINT "gym_reviews_gym_id_fkey" FOREIGN KEY ("gym_id") REFERENCES "gym_places"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "GymReview" ADD CONSTRAINT "GymReview_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "gym_reviews" ADD CONSTRAINT "gym_reviews_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Report" ADD CONSTRAINT "Report_reporterId_fkey" FOREIGN KEY ("reporterId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "reports" ADD CONSTRAINT "reports_reporter_id_fkey" FOREIGN KEY ("reporter_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "ModerationAction" ADD CONSTRAINT "ModerationAction_adminId_fkey" FOREIGN KEY ("adminId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "moderation_actions" ADD CONSTRAINT "moderation_actions_admin_id_fkey" FOREIGN KEY ("admin_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
