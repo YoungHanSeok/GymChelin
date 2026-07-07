@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import api from "@/lib/api";
+import { useAuthSession } from "@/lib/auth-session";
 import FindIdModal from "./FindIdComponent";
 import FindPasswordModal from "./FindPasswordComponent";
 import SignUpModal from "./SignUpComponent";
@@ -10,9 +12,9 @@ import SignUpModal from "./SignUpComponent";
 type ModalType = "signup" | "findId" | "findPassword" | null;
 
 const providers = [
-  { id: "kakao", label: "카카오 로그인", className: "bg-[#FEE500] text-slate-950 hover:bg-yellow-300" },
-  { id: "naver", label: "네이버 로그인", className: "bg-[#03C75A] text-white hover:bg-emerald-600" },
-  { id: "google", label: "Google 로그인", className: "border border-slate-300 bg-white text-slate-700 hover:border-slate-500" },
+  { id: "kakao", label: "카카오 로그인", className: "bg-[#FEE500] text-slate-950" },
+  { id: "naver", label: "네이버 로그인", className: "bg-[#03C75A] text-white" },
+  { id: "google", label: "Google 로그인", className: "border border-slate-300 bg-white text-slate-700" },
 ];
 
 const getApiMessage = (error: unknown) => {
@@ -39,20 +41,26 @@ const getApiMessage = (error: unknown) => {
 };
 
 export default function LoginPage() {
+  const router = useRouter();
+  const { refreshUser } = useAuthSession();
   const [modalOpen, setModalOpen] = useState<ModalType>(null);
   const [loginId, setLoginId] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const login = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
+    setNotice(null);
     setIsSubmitting(true);
 
     try {
       await api.post("/auth/login", { loginId, password });
-      window.location.href = "/";
+      await refreshUser();
+      router.push("/");
+      router.refresh();
     } catch (loginError) {
       setError(getApiMessage(loginError));
     } finally {
@@ -60,29 +68,12 @@ export default function LoginPage() {
     }
   };
 
-  const startOAuth = async (provider: string) => {
+  const completeSignup = (username: string) => {
     setError(null);
-
-    try {
-      const response = await api.get<{
-        authUrl?: string;
-        setupRequired?: boolean;
-        message?: string;
-        requiredEnv?: string[];
-      }>(`/auth/oauth/${provider}`);
-
-      if (response.data.authUrl) {
-        window.location.href = response.data.authUrl;
-        return;
-      }
-
-      setError(
-        response.data.message ??
-          `${provider} 로그인을 사용하려면 OAuth 환경변수를 먼저 설정해야 합니다.`,
-      );
-    } catch (oauthError) {
-      setError(getApiMessage(oauthError));
-    }
+    setNotice("회원가입이 완료되었습니다. 아이디로 로그인해 주세요.");
+    setLoginId(username);
+    setPassword("");
+    setModalOpen(null);
   };
 
   return (
@@ -93,10 +84,12 @@ export default function LoginPage() {
         </Link>
         <p className="mt-2 text-center text-sm text-slate-500">웨이트 커뮤니티에 로그인하세요</p>
 
+        {notice && <p className="mt-5 rounded bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{notice}</p>}
+
         <form onSubmit={login} className="mt-7 space-y-4">
           <div>
             <label htmlFor="login-id" className="mb-1.5 block text-sm font-medium text-slate-700">
-              이메일 또는 아이디
+              아이디
             </label>
             <input
               id="login-id"
@@ -104,6 +97,7 @@ export default function LoginPage() {
               onChange={(event) => setLoginId(event.target.value)}
               required
               className="input-style"
+              placeholder="gymchelin_user"
             />
           </div>
           <div>
@@ -135,8 +129,8 @@ export default function LoginPage() {
             <button
               key={provider.id}
               type="button"
-              onClick={() => startOAuth(provider.id)}
-              className={`rounded px-4 py-2.5 text-sm font-semibold transition ${provider.className}`}
+              disabled
+              className={`rounded px-4 py-2.5 text-sm font-semibold opacity-60 ${provider.className}`}
             >
               {provider.label}
             </button>
@@ -158,7 +152,7 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {modalOpen === "signup" && <SignUpModal onClose={() => setModalOpen(null)} />}
+      {modalOpen === "signup" && <SignUpModal onClose={() => setModalOpen(null)} onComplete={completeSignup} />}
       {modalOpen === "findId" && <FindIdModal onClose={() => setModalOpen(null)} />}
       {modalOpen === "findPassword" && <FindPasswordModal onClose={() => setModalOpen(null)} />}
     </div>

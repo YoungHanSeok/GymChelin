@@ -20,17 +20,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         <aside className="space-y-5">
           <div className="sticky top-24 space-y-5">
             <AdSlot slot="MAIN_RIGHT" label="오른쪽 광고" />
-            <section className="border-t border-slate-200 pt-4">
-              <h2 className="mb-3 text-sm font-bold text-slate-950">운영 바로가기</h2>
-              <div className="grid gap-2 text-sm">
-                <a className="text-slate-600 hover:text-emerald-700" href="/admin/reports">
-                  신고 관리
-                </a>
-                <a className="text-slate-600 hover:text-emerald-700" href="/admin/ads">
-                  광고 관리
-                </a>
-              </div>
-            </section>
           </div>
         </aside>
       </main>

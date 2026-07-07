@@ -1,28 +1,56 @@
-import { Body, Controller, Get, Param, Post, Query, Res, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import type { Response } from 'express';
+import { CreateUserDto } from '../users/dto/create-user.dto';
 import { AuthGuard } from './auth.guard';
 import { AuthService, SESSION_COOKIE } from './auth.service';
 import { CurrentUser } from './current-user.decorator';
+
+type LoginBody = {
+  loginId?: string;
+  password?: string;
+};
+
+type PublicUser = {
+  id: number;
+  email: string;
+  username: string;
+  nickname: string;
+  role: string;
+  createdAt: Date;
+};
 
 @Controller('api/auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('signup')
-  async signup(@Body() body: any, @Res({ passthrough: true }) response: Response) {
-    const result = await this.authService.signup(body);
-    response.cookie(SESSION_COOKIE, result.token, this.authService.createCookieOptions());
-
-    return result;
+  signup(@Body() body: CreateUserDto) {
+    return this.authService.signup(body);
   }
 
   @Post('login')
-  async login(@Body() body: any, @Res({ passthrough: true }) response: Response) {
+  async login(
+    @Body() body: LoginBody,
+    @Res({ passthrough: true }) response: Response,
+  ) {
     const result = await this.authService.login({
-      loginId: body.loginId ?? body.email ?? body.username ?? '',
+      loginId: body.loginId ?? '',
       password: body.password ?? '',
     });
-    response.cookie(SESSION_COOKIE, result.token, this.authService.createCookieOptions());
+    response.cookie(
+      SESSION_COOKIE,
+      result.token,
+      this.authService.createCookieOptions(),
+    );
 
     return result;
   }
@@ -35,7 +63,7 @@ export class AuthController {
 
   @Get('me')
   @UseGuards(AuthGuard)
-  me(@CurrentUser() user: any) {
+  me(@CurrentUser() user: PublicUser) {
     return user;
   }
 
@@ -51,7 +79,11 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ) {
     const result = await this.authService.handleOAuthCallback(provider, code);
-    response.cookie(SESSION_COOKIE, result.token, this.authService.createCookieOptions());
+    response.cookie(
+      SESSION_COOKIE,
+      result.token,
+      this.authService.createCookieOptions(),
+    );
 
     return result;
   }

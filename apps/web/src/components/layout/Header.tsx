@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useAuthSession } from "@/lib/auth-session";
 
 const navItems = [
   { href: "/boards/workout-log", label: "운동일지" },
@@ -12,7 +14,36 @@ const navItems = [
 ];
 
 export default function Header() {
+  const router = useRouter();
+  const { user, isLoading, logout } = useAuthSession();
   const [isOpen, setIsOpen] = useState(false);
+
+  const handleLogout = async () => {
+    await logout();
+    setIsOpen(false);
+    router.push("/");
+    router.refresh();
+  };
+
+  const authControl = user ? (
+    <div className="hidden items-center gap-2 md:flex">
+      <span className="max-w-32 truncate text-sm font-medium text-slate-600">{user.nickname}</span>
+      <button
+        type="button"
+        onClick={handleLogout}
+        className="rounded border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:border-emerald-600 hover:text-emerald-700"
+      >
+        로그아웃
+      </button>
+    </div>
+  ) : (
+    <Link
+      href="/login"
+      className="hidden rounded bg-slate-950 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 md:inline-flex"
+    >
+      로그인
+    </Link>
+  );
 
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
@@ -45,12 +76,7 @@ export default function Header() {
           />
         </form>
 
-        <Link
-          href="/login"
-          className="hidden rounded bg-slate-950 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 md:inline-flex"
-        >
-          로그인
-        </Link>
+        {!isLoading && authControl}
 
         <button
           type="button"
@@ -81,13 +107,23 @@ export default function Header() {
                 {item.label}
               </Link>
             ))}
-            <Link
-              href="/login"
-              className="mt-2 rounded bg-slate-950 px-2 py-2 text-center text-sm font-semibold text-white"
-              onClick={() => setIsOpen(false)}
-            >
-              로그인
-            </Link>
+            {user ? (
+              <button
+                type="button"
+                className="mt-2 rounded border border-slate-300 px-2 py-2 text-center text-sm font-semibold text-slate-700"
+                onClick={handleLogout}
+              >
+                로그아웃
+              </button>
+            ) : (
+              <Link
+                href="/login"
+                className="mt-2 rounded bg-slate-950 px-2 py-2 text-center text-sm font-semibold text-white"
+                onClick={() => setIsOpen(false)}
+              >
+                로그인
+              </Link>
+            )}
           </nav>
         </div>
       )}

@@ -34,7 +34,13 @@ const getApiMessage = (error: unknown) => {
   return "회원가입 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
 };
 
-export default function SignUpModal({ onClose }: { onClose: () => void }) {
+export default function SignUpModal({
+  onClose,
+  onComplete,
+}: {
+  onClose: () => void;
+  onComplete: (username: string) => void;
+}) {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const {
@@ -60,8 +66,7 @@ export default function SignUpModal({ onClose }: { onClose: () => void }) {
       });
 
       reset();
-      onClose();
-      window.location.href = "/";
+      onComplete(data.username);
     } catch (error: unknown) {
       setSubmitError(getApiMessage(error));
     }

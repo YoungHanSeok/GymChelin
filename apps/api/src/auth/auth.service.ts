@@ -35,11 +35,11 @@ export class AuthService {
 
   async signup(dto: CreateUserDto) {
     const user = await this.usersService.create(dto);
-    return this.withToken(user);
+    return { user };
   }
 
   async login(input: { loginId: string; password: string }) {
-    const user = await this.usersService.findByEmailOrUsername(input.loginId);
+    const user = await this.usersService.findByUsername(input.loginId);
 
     if (!user || !verifyPassword(input.password, user.password)) {
       throw new UnauthorizedException(

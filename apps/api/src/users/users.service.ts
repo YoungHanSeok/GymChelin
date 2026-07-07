@@ -1,4 +1,8 @@
-import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+} from '@nestjs/common';
 import { hashPassword } from '../common/password';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -43,11 +47,19 @@ export class UsersService {
   async create(createUserDto: CreateUserDto) {
     const email = createUserDto.email.trim().toLowerCase();
     const username = normalizeUsername(createUserDto.username);
-    const nickname = normalizeUsername(createUserDto.nickname ?? createUserDto.username);
+    const nickname = normalizeUsername(
+      createUserDto.nickname ?? createUserDto.username,
+    );
     const password = createUserDto.password;
     const confirmPassword = createUserDto.confirmPassword;
 
-    this.validateLocalSignup({ email, username, nickname, password, confirmPassword });
+    this.validateLocalSignup({
+      email,
+      username,
+      nickname,
+      password,
+      confirmPassword,
+    });
 
     const existingUser = await this.prisma.user.findFirst({
       where: {
@@ -91,13 +103,11 @@ export class UsersService {
     });
   }
 
-  findByEmailOrUsername(loginId: string) {
-    const normalized = loginId.trim().toLowerCase();
-
+  findByUsername(username: string) {
     return this.prisma.user.findFirst({
       where: {
         deleteYN: 'N',
-        OR: [{ email: normalized }, { username: loginId.trim() }],
+        username: username.trim(),
       },
     });
   }
@@ -140,14 +150,19 @@ export class UsersService {
       throw new BadRequestException('지원하지 않는 이메일 도메인입니다.');
     }
 
-    if (username.length > USER_LIMITS.username || nickname.length > USER_LIMITS.username) {
+    if (
+      username.length > USER_LIMITS.username ||
+      nickname.length > USER_LIMITS.username
+    ) {
       throw new BadRequestException(
         `아이디와 닉네임은 최대 ${USER_LIMITS.username}자까지 입력할 수 있습니다.`,
       );
     }
 
     if (!/^[A-Za-z0-9_]+$/.test(username)) {
-      throw new BadRequestException('아이디는 영문, 숫자, 밑줄(_)만 사용할 수 있습니다.');
+      throw new BadRequestException(
+        '아이디는 영문, 숫자, 밑줄(_)만 사용할 수 있습니다.',
+      );
     }
 
     if (password.length < 8 || password.length > USER_LIMITS.password) {
