@@ -23,8 +23,8 @@ const AuthSessionContext = createContext<AuthSessionContextValue | null>(null);
 
 const fetchCurrentUser = async () => {
   try {
-    const response = await api.get<AuthUser>("/auth/me");
-    return response.data;
+    const response = await api.get<AuthUser | null>("/auth/me");
+    return response.data && typeof response.data === "object" ? response.data : null;
   } catch {
     return null;
   }

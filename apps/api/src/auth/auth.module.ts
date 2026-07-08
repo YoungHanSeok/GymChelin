@@ -1,5 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
+import { RedisModule } from '../redis/redis.module';
 import { UsersModule } from '../users/users.module';
 import { AdminGuard } from './admin.guard';
 import { AuthController } from './auth.controller';
@@ -8,7 +9,7 @@ import { AuthService } from './auth.service';
 
 @Global()
 @Module({
-  imports: [PrismaModule, UsersModule],
+  imports: [PrismaModule, RedisModule, UsersModule],
   controllers: [AuthController],
   providers: [AuthService, AuthGuard, AdminGuard],
   exports: [AuthService, AuthGuard, AdminGuard],

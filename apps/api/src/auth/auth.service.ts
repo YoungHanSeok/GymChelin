@@ -4,20 +4,27 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { AuthProvider, User } from '@prisma/client';
-import { createHmac } from 'crypto';
+import { createHmac, randomUUID } from 'crypto';
 import { verifyPassword } from '../common/password';
 import { PrismaService } from '../prisma/prisma.service';
+import { RedisService } from '../redis/redis.service';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { UsersService } from '../users/users.service';
 
-const SESSION_COOKIE = 'gymchelin_token';
-const SESSION_TTL_SECONDS = 60 * 60 * 24 * 14;
+const ACCESS_TOKEN_COOKIE = 'gymchelin_access_token';
+const REFRESH_TOKEN_COOKIE = 'gymchelin_refresh_token';
+const LEGACY_SESSION_COOKIE = 'gymchelin_token';
+const ACCESS_TOKEN_TTL_SECONDS = 60 * 30;
+const REFRESH_TOKEN_TTL_SECONDS = 60 * 60 * 24 * 14;
 
-type SessionPayload = {
+type TokenType = 'access' | 'refresh';
+
+type TokenPayload = {
   sub: number;
   role: string;
   exp: number;
   jti: string;
+  type: TokenType;
 };
 
 type OAuthProfile = {
@@ -26,10 +33,34 @@ type OAuthProfile = {
   nickname?: string;
 };
 
+type RefreshSessionRecord = {
+  userId: number;
+  role: string;
+  tokenHash: string;
+};
+
+const toRecord = (value: unknown): Record<string, unknown> =>
+  typeof value === 'object' && value !== null
+    ? (value as Record<string, unknown>)
+    : {};
+
+const toStringValue = (value: unknown) => {
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value);
+  }
+
+  return undefined;
+};
+
 @Injectable()
 export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly redisService: RedisService,
     private readonly usersService: UsersService,
   ) {}
 
@@ -47,7 +78,7 @@ export class AuthService {
       );
     }
 
-    return this.withToken(this.toPublicUser(user));
+    return this.withTokens(this.toPublicUser(user));
   }
 
   async me(userId: number) {
@@ -108,18 +139,38 @@ export class AuthService {
     );
     const user = await this.upsertOAuthUser(provider, profile);
 
-    return this.withToken(user);
+    return this.withTokens(user);
+  }
+
+  async logout(request: {
+    headers?: Record<string, string | string[] | undefined>;
+  }) {
+    const token = this.extractCookieToken(request, REFRESH_TOKEN_COOKIE);
+    if (!token) {
+      return;
+    }
+
+    const payload = this.verifyToken(token, 'refresh');
+    if (!payload) {
+      return;
+    }
+
+    try {
+      await this.redisService.delete(this.refreshSessionKey(payload.jti));
+    } catch {
+      return;
+    }
   }
 
   async getUserFromRequest(request: {
     headers?: Record<string, string | string[] | undefined>;
   }) {
-    const token = this.extractToken(request);
+    const token = this.extractAccessToken(request);
     if (!token) {
       return null;
     }
 
-    const payload = this.verifyToken(token);
+    const payload = this.verifyToken(token, 'access');
     if (!payload) {
       return null;
     }
@@ -127,12 +178,103 @@ export class AuthService {
     return this.me(payload.sub);
   }
 
-  createCookieOptions() {
+  async getSessionFromRequest(request: {
+    headers?: Record<string, string | string[] | undefined>;
+  }) {
+    const accessToken = this.extractAccessToken(request);
+    const accessPayload = accessToken
+      ? this.verifyToken(accessToken, 'access')
+      : null;
+
+    if (accessPayload) {
+      const user = await this.me(accessPayload.sub);
+      if (!user) {
+        return null;
+      }
+
+      return {
+        user,
+      };
+    }
+
+    const refreshedSession = await this.refreshAccessToken(request);
+    if (!refreshedSession) {
+      return null;
+    }
+
+    return refreshedSession;
+  }
+
+  async refreshAccessToken(request: {
+    headers?: Record<string, string | string[] | undefined>;
+  }) {
+    const refreshToken = this.extractCookieToken(request, REFRESH_TOKEN_COOKIE);
+    if (!refreshToken) {
+      return null;
+    }
+
+    const payload = this.verifyToken(refreshToken, 'refresh');
+    if (!payload) {
+      return null;
+    }
+
+    let session: RefreshSessionRecord | null;
+
+    try {
+      session = await this.redisService.getJson<RefreshSessionRecord>(
+        this.refreshSessionKey(payload.jti),
+      );
+    } catch {
+      return null;
+    }
+
+    if (
+      !session ||
+      session.userId !== payload.sub ||
+      session.tokenHash !== this.hashToken(refreshToken)
+    ) {
+      return null;
+    }
+
+    const user = await this.me(payload.sub);
+    if (!user) {
+      try {
+        await this.redisService.delete(this.refreshSessionKey(payload.jti));
+      } catch {
+        return null;
+      }
+      return null;
+    }
+
+    const { token: accessToken } = this.createToken({
+      userId: user.id,
+      role: user.role,
+      type: 'access',
+      ttlSeconds: ACCESS_TOKEN_TTL_SECONDS,
+    });
+
+    return {
+      accessToken,
+      user,
+    };
+  }
+
+  createAccessCookieOptions() {
     return {
       httpOnly: true,
       sameSite: 'lax' as const,
       secure: process.env.NODE_ENV === 'production',
-      maxAge: SESSION_TTL_SECONDS * 1000,
+      maxAge: ACCESS_TOKEN_TTL_SECONDS * 1000,
+      path: '/',
+    };
+  }
+
+  createRefreshCookieOptions() {
+    return {
+      httpOnly: true,
+      sameSite: 'lax' as const,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: REFRESH_TOKEN_TTL_SECONDS * 1000,
       path: '/',
     };
   }
@@ -191,29 +333,38 @@ export class AuthService {
       );
     }
 
-    const data = (await response.json()) as Record<string, any>;
+    const data = toRecord(await response.json());
 
     if (provider === AuthProvider.KAKAO) {
+      const kakaoAccount = toRecord(data['kakao_account']);
+      const kakaoProfile = toRecord(kakaoAccount['profile']);
+      const properties = toRecord(data['properties']);
+
       return {
-        providerUserId: String(data.id),
-        email: data.kakao_account?.email,
+        providerUserId: toStringValue(data['id']) ?? '',
+        email: toStringValue(kakaoAccount['email']),
         nickname:
-          data.properties?.nickname ?? data.kakao_account?.profile?.nickname,
+          toStringValue(properties['nickname']) ??
+          toStringValue(kakaoProfile['nickname']),
       };
     }
 
     if (provider === AuthProvider.NAVER) {
+      const naverResponse = toRecord(data['response']);
+
       return {
-        providerUserId: String(data.response?.id),
-        email: data.response?.email,
-        nickname: data.response?.nickname ?? data.response?.name,
+        providerUserId: toStringValue(naverResponse['id']) ?? '',
+        email: toStringValue(naverResponse['email']),
+        nickname:
+          toStringValue(naverResponse['nickname']) ??
+          toStringValue(naverResponse['name']),
       };
     }
 
     return {
-      providerUserId: String(data.id),
-      email: data.email,
-      nickname: data.name,
+      providerUserId: toStringValue(data['id']) ?? '',
+      email: toStringValue(data['email']),
+      nickname: toStringValue(data['name']),
     };
   }
 
@@ -329,19 +480,49 @@ export class AuthService {
     return normalized || 'gymchelin';
   }
 
-  private withToken<T extends { id: number; role: string }>(user: T) {
+  private async withTokens<T extends { id: number; role: string }>(user: T) {
+    const { token: accessToken } = this.createToken({
+      userId: user.id,
+      role: user.role,
+      type: 'access',
+      ttlSeconds: ACCESS_TOKEN_TTL_SECONDS,
+    });
+    const { token: refreshToken, payload: refreshPayload } = this.createToken({
+      userId: user.id,
+      role: user.role,
+      type: 'refresh',
+      ttlSeconds: REFRESH_TOKEN_TTL_SECONDS,
+    });
+
+    await this.redisService.setJson(
+      this.refreshSessionKey(refreshPayload.jti),
+      {
+        userId: user.id,
+        role: user.role,
+        tokenHash: this.hashToken(refreshToken),
+      },
+      REFRESH_TOKEN_TTL_SECONDS,
+    );
+
     return {
-      token: this.createToken({ userId: user.id, role: user.role }),
+      accessToken,
+      refreshToken,
       user,
     };
   }
 
-  private createToken(input: { userId: number; role: string }) {
-    const payload: SessionPayload = {
+  private createToken(input: {
+    userId: number;
+    role: string;
+    type: TokenType;
+    ttlSeconds: number;
+  }) {
+    const payload: TokenPayload = {
       sub: input.userId,
       role: input.role,
-      exp: Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS,
-      jti: `${input.userId}-${Date.now()}`,
+      exp: Math.floor(Date.now() / 1000) + input.ttlSeconds,
+      jti: randomUUID(),
+      type: input.type,
     };
     const header = {
       alg: 'HS256',
@@ -355,10 +536,17 @@ export class AuthService {
     );
     const signature = this.sign(`${encodedHeader}.${encodedPayload}`);
 
-    return `${encodedHeader}.${encodedPayload}.${signature}`;
+    return {
+      token: `${encodedHeader}.${encodedPayload}.${signature}`,
+      payload,
+    };
   }
 
-  private verifyToken(token: string): SessionPayload | null {
+  private refreshSessionKey(jti: string) {
+    return `auth:refresh:${jti}`;
+  }
+
+  private verifyToken(token: string, type: TokenType): TokenPayload | null {
     const [encodedHeader, encodedPayload, signature] = token.split('.');
     if (
       !encodedHeader ||
@@ -372,8 +560,13 @@ export class AuthService {
     try {
       const payload = JSON.parse(
         Buffer.from(encodedPayload, 'base64url').toString(),
-      ) as SessionPayload;
-      if (!payload.sub || payload.exp < Math.floor(Date.now() / 1000)) {
+      ) as TokenPayload;
+      if (
+        !payload.sub ||
+        !payload.jti ||
+        payload.type !== type ||
+        payload.exp < Math.floor(Date.now() / 1000)
+      ) {
         return null;
       }
 
@@ -383,7 +576,7 @@ export class AuthService {
     }
   }
 
-  private extractToken(request: {
+  private extractAccessToken(request: {
     headers?: Record<string, string | string[] | undefined>;
   }) {
     const authorization = request.headers?.authorization;
@@ -395,6 +588,15 @@ export class AuthService {
       return authorizationValue.slice('Bearer '.length);
     }
 
+    return this.extractCookieToken(request, ACCESS_TOKEN_COOKIE);
+  }
+
+  private extractCookieToken(
+    request: {
+      headers?: Record<string, string | string[] | undefined>;
+    },
+    cookieName: string,
+  ) {
     const cookieHeader = request.headers?.cookie;
     const cookieValue = Array.isArray(cookieHeader)
       ? cookieHeader.join(';')
@@ -405,12 +607,16 @@ export class AuthService {
 
     const cookies = cookieValue.split(';').map((cookie) => cookie.trim());
     const tokenCookie = cookies.find((cookie) =>
-      cookie.startsWith(`${SESSION_COOKIE}=`),
+      cookie.startsWith(`${cookieName}=`),
     );
 
     return tokenCookie
       ? decodeURIComponent(tokenCookie.split('=').slice(1).join('='))
       : null;
+  }
+
+  private hashToken(token: string) {
+    return this.sign(`refresh:${token}`);
   }
 
   private sign(value: string) {
@@ -497,4 +703,4 @@ export class AuthService {
   }
 }
 
-export { SESSION_COOKIE };
+export { ACCESS_TOKEN_COOKIE, LEGACY_SESSION_COOKIE, REFRESH_TOKEN_COOKIE };

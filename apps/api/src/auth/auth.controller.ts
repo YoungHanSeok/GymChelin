@@ -5,27 +5,22 @@ import {
   Param,
   Post,
   Query,
+  Req,
   Res,
-  UseGuards,
+  UnauthorizedException,
 } from '@nestjs/common';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { CreateUserDto } from '../users/dto/create-user.dto';
-import { AuthGuard } from './auth.guard';
-import { AuthService, SESSION_COOKIE } from './auth.service';
-import { CurrentUser } from './current-user.decorator';
+import {
+  ACCESS_TOKEN_COOKIE,
+  AuthService,
+  LEGACY_SESSION_COOKIE,
+  REFRESH_TOKEN_COOKIE,
+} from './auth.service';
 
 type LoginBody = {
   loginId?: string;
   password?: string;
-};
-
-type PublicUser = {
-  id: number;
-  email: string;
-  username: string;
-  nickname: string;
-  role: string;
-  createdAt: Date;
 };
 
 @Controller('api/auth')
@@ -46,25 +41,63 @@ export class AuthController {
       loginId: body.loginId ?? '',
       password: body.password ?? '',
     });
-    response.cookie(
-      SESSION_COOKIE,
-      result.token,
-      this.authService.createCookieOptions(),
-    );
+    this.setAuthCookies(response, result);
 
-    return result;
+    return { user: result.user };
   }
 
   @Post('logout')
-  logout(@Res({ passthrough: true }) response: Response) {
-    response.clearCookie(SESSION_COOKIE, this.authService.clearCookieOptions());
+  async logout(
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    await this.authService.logout(request);
+    this.clearAuthCookies(response);
     return { ok: true };
   }
 
+  @Post('refresh')
+  async refresh(
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const session = await this.authService.refreshAccessToken(request);
+
+    if (!session) {
+      this.clearAuthCookies(response);
+      throw new UnauthorizedException('로그인이 필요합니다.');
+    }
+
+    response.cookie(
+      ACCESS_TOKEN_COOKIE,
+      session.accessToken,
+      this.authService.createAccessCookieOptions(),
+    );
+
+    return { user: session.user };
+  }
+
   @Get('me')
-  @UseGuards(AuthGuard)
-  me(@CurrentUser() user: PublicUser) {
-    return user;
+  async me(
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const session = await this.authService.getSessionFromRequest(request);
+
+    if (!session || !session.user) {
+      this.clearAuthCookies(response);
+      return null;
+    }
+
+    if ('accessToken' in session) {
+      response.cookie(
+        ACCESS_TOKEN_COOKIE,
+        session.accessToken,
+        this.authService.createAccessCookieOptions(),
+      );
+    }
+
+    return session.user;
   }
 
   @Get('oauth/:provider')
@@ -79,12 +112,43 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ) {
     const result = await this.authService.handleOAuthCallback(provider, code);
-    response.cookie(
-      SESSION_COOKIE,
-      result.token,
-      this.authService.createCookieOptions(),
-    );
+    this.setAuthCookies(response, result);
 
-    return result;
+    return { user: result.user };
+  }
+
+  private setAuthCookies(
+    response: Response,
+    result: { accessToken: string; refreshToken: string },
+  ) {
+    response.cookie(
+      ACCESS_TOKEN_COOKIE,
+      result.accessToken,
+      this.authService.createAccessCookieOptions(),
+    );
+    response.cookie(
+      REFRESH_TOKEN_COOKIE,
+      result.refreshToken,
+      this.authService.createRefreshCookieOptions(),
+    );
+    response.clearCookie(
+      LEGACY_SESSION_COOKIE,
+      this.authService.clearCookieOptions(),
+    );
+  }
+
+  private clearAuthCookies(response: Response) {
+    response.clearCookie(
+      ACCESS_TOKEN_COOKIE,
+      this.authService.clearCookieOptions(),
+    );
+    response.clearCookie(
+      REFRESH_TOKEN_COOKIE,
+      this.authService.clearCookieOptions(),
+    );
+    response.clearCookie(
+      LEGACY_SESSION_COOKIE,
+      this.authService.clearCookieOptions(),
+    );
   }
 }
