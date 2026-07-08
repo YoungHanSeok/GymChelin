@@ -1,40 +1,34 @@
-"use client";
-
 import AdSlot from "@/components/ads/AdSlot";
 import PostList from "@/components/community/PostList";
+import WriteEntryButton from "@/components/community/WriteEntryButton";
 import api from "@/lib/api";
 import { type ApiPost, type PostPreview, toPostPreview } from "@/lib/community-types";
-import Link from "next/link";
-import { useEffect, useState } from "react";
 
-export default function FreeBoardPage() {
-  const [posts, setPosts] = useState<PostPreview[]>([]);
+export const dynamic = "force-dynamic";
 
-  useEffect(() => {
-    let isMounted = true;
+const loadPosts = async (): Promise<{
+  posts: PostPreview[];
+  errorMessage: string | null;
+}> => {
+  try {
+    const response = await api.get<ApiPost[]>("/posts", {
+      params: { category: "FREE" },
+    });
 
-    const loadPosts = async () => {
-      try {
-        const response = await api.get<ApiPost[]>("/posts", {
-          params: { category: "FREE" },
-        });
-
-        if (isMounted) {
-          setPosts(response.data.map(toPostPreview));
-        }
-      } catch {
-        if (isMounted) {
-          setPosts([]);
-        }
-      }
+    return {
+      posts: response.data.map(toPostPreview),
+      errorMessage: null,
     };
-
-    void loadPosts();
-
-    return () => {
-      isMounted = false;
+  } catch {
+    return {
+      posts: [],
+      errorMessage: "자유게시판 목록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.",
     };
-  }, []);
+  }
+};
+
+export default async function FreeBoardPage() {
+  const { posts, errorMessage } = await loadPosts();
 
   return (
     <div className="space-y-6">
@@ -50,12 +44,10 @@ export default function FreeBoardPage() {
           <button className="rounded border border-slate-900 px-3 py-2 font-semibold text-slate-950">인기순</button>
           <button className="rounded border border-slate-300 px-3 py-2 text-slate-600">최신순</button>
         </div>
-        <Link href="/login" className="rounded bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
-          로그인 후 글쓰기
-        </Link>
+        <WriteEntryButton category="FREE">작성하기</WriteEntryButton>
       </div>
 
-      <PostList posts={posts} title="자유게시판 글" />
+      <PostList posts={posts} title="자유게시판 글" errorMessage={errorMessage} />
       <AdSlot slot="POST_LIST_INLINE" label="게시판 광고" />
     </div>
   );

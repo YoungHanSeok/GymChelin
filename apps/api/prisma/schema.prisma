@@ -55,6 +55,13 @@ enum ReportStatus {
   @@map("report_status")
 }
 
+enum CommentReactionType {
+  LIKE
+  DISLIKE
+
+  @@map("comment_reaction_type")
+}
+
 enum AdSlot {
   MAIN_TOP
   MAIN_LEFT
@@ -66,26 +73,27 @@ enum AdSlot {
 }
 
 model User {
-  id             Int                @id @default(autoincrement())
-  email          String             @unique @db.VarChar(120)
-  username       String             @unique @db.VarChar(30)
-  password       String?
-  nickname       String             @unique @db.VarChar(30)
-  role           UserRole           @default(USER)
-  passwordReset  String             @default("N") @map("password_reset") @db.Char(1)
-  deleteYN       String             @default("N") @map("delete_yn") @db.Char(1)
-  changePwAt     DateTime           @default(now()) @map("change_pw_at")
-  createdAt      DateTime           @default(now()) @map("created_at")
-  updatedAt      DateTime           @updatedAt @map("updated_at")
-  socialAccounts SocialAccount[]
-  posts          Post[]
-  comments       Comment[]
-  reactions      Reaction[]
-  routines       Routine[]
-  routineLikes   RoutineLike[]
-  gymReviews     GymReview[]
-  reports        Report[]           @relation("ReporterReports")
-  moderationLogs ModerationAction[] @relation("AdminModerationActions")
+  id               Int                @id @default(autoincrement())
+  email            String             @unique @db.VarChar(120)
+  username         String             @unique @db.VarChar(30)
+  password         String?
+  nickname         String             @unique @db.VarChar(30)
+  role             UserRole           @default(USER)
+  passwordReset    String             @default("N") @map("password_reset") @db.Char(1)
+  deleteYN         String             @default("N") @map("delete_yn") @db.Char(1)
+  changePwAt       DateTime           @default(now()) @map("change_pw_at")
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+  socialAccounts   SocialAccount[]
+  posts            Post[]
+  comments         Comment[]
+  reactions        Reaction[]
+  commentReactions CommentReaction[]
+  routines         Routine[]
+  routineLikes     RoutineLike[]
+  gymReviews       GymReview[]
+  reports          Report[]           @relation("ReporterReports")
+  moderationLogs   ModerationAction[] @relation("AdminModerationActions")
 
   @@map("users")
 }
@@ -122,18 +130,38 @@ model Post {
 }
 
 model Comment {
-  id        Int           @id @default(autoincrement())
+  id        Int               @id @default(autoincrement())
   content   String
-  status    ContentStatus @default(ACTIVE)
-  postId    Int           @map("post_id")
-  authorId  Int           @map("author_id")
-  createdAt DateTime      @default(now()) @map("created_at")
-  updatedAt DateTime      @updatedAt @map("updated_at")
-  post      Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
-  author    User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  status    ContentStatus     @default(ACTIVE)
+  postId    Int               @map("post_id")
+  authorId  Int               @map("author_id")
+  parentId  Int?              @map("parent_id")
+  createdAt DateTime          @default(now()) @map("created_at")
+  updatedAt DateTime          @updatedAt @map("updated_at")
+  post      Post              @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author    User              @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent    Comment?          @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   Comment[]         @relation("CommentReplies")
+  reactions CommentReaction[]
 
   @@index([postId, status, createdAt])
+  @@index([postId, parentId, createdAt])
   @@map("comments")
+}
+
+model CommentReaction {
+  id        Int                 @id @default(autoincrement())
+  commentId Int                 @map("comment_id")
+  userId    Int                 @map("user_id")
+  type      CommentReactionType
+  createdAt DateTime            @default(now()) @map("created_at")
+  updatedAt DateTime            @updatedAt @map("updated_at")
+  comment   Comment             @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId])
+  @@index([commentId, type])
+  @@map("comment_reactions")
 }
 
 model Reaction {

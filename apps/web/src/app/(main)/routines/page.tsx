@@ -1,8 +1,8 @@
 "use client";
 
+import WriteEntryButton from "@/components/community/WriteEntryButton";
 import api from "@/lib/api";
 import { type ApiRoutine, type RoutinePreview, toRoutinePreview } from "@/lib/community-types";
-import Link from "next/link";
 import { useEffect, useState } from "react";
 
 export default function RoutinesPage() {
@@ -46,9 +46,7 @@ export default function RoutinesPage() {
           <button className="rounded border border-slate-900 px-3 py-2 font-semibold text-slate-950">좋아요순</button>
           <button className="rounded border border-slate-300 px-3 py-2 text-slate-600">최신순</button>
         </div>
-        <Link href="/login" className="rounded bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
-          로그인 후 루틴 올리기
-        </Link>
+        <WriteEntryButton category="ROUTINE">작성하기</WriteEntryButton>
       </div>
 
       <div className="divide-y divide-slate-100 border-b border-slate-200">

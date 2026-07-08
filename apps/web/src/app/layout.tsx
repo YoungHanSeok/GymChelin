@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 import { AuthSessionProvider } from "@/lib/auth-session";
+import "@toast-ui/editor/dist/toastui-editor.css";
 import "./globals.css";
 
 const geistSans = Geist({

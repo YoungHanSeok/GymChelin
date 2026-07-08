@@ -40,6 +40,16 @@ const getApiMessage = (error: unknown) => {
   return "로그인 중 오류가 발생했습니다.";
 };
 
+const getRedirectPath = () => {
+  const redirect = new URLSearchParams(window.location.search).get("redirect");
+
+  if (!redirect || !redirect.startsWith("/") || redirect.startsWith("//")) {
+    return "/";
+  }
+
+  return redirect;
+};
+
 export default function LoginPage() {
   const router = useRouter();
   const { refreshUser } = useAuthSession();
@@ -59,7 +69,7 @@ export default function LoginPage() {
     try {
       await api.post("/auth/login", { loginId, password });
       await refreshUser();
-      router.push("/");
+      router.push(getRedirectPath());
       router.refresh();
     } catch (loginError) {
       setError(getApiMessage(loginError));
