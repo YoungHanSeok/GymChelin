@@ -3,6 +3,8 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import type ToastuiEditor from "@toast-ui/editor";
 
+type EditorTheme = "light" | "dark";
+
 export type MarkdownEditorHandle = {
   getMarkdown: () => string;
   focus: () => void;
@@ -15,10 +17,19 @@ type MarkdownEditorProps = {
   placeholder?: string;
 };
 
+function getAppliedEditorTheme(): EditorTheme {
+  if (document.documentElement.dataset.theme === "dark" || document.documentElement.classList.contains("dark")) {
+    return "dark";
+  }
+
+  return "light";
+}
+
 const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
   ({ height = "420px", initialValue = "", placeholder }, ref) => {
     const containerRef = useRef<HTMLDivElement | null>(null);
     const editorRef = useRef<ToastuiEditor | null>(null);
+    const markdownRef = useRef(initialValue);
 
     useImperativeHandle(ref, () => ({
       getMarkdown: () => editorRef.current?.getMarkdown() ?? "",
@@ -48,8 +59,9 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
 
     useEffect(() => {
       let isMounted = true;
+      let activeTheme = getAppliedEditorTheme();
 
-      const setupEditor = async () => {
+      const setupEditor = async (theme: EditorTheme) => {
         const { default: Editor } = await import("@toast-ui/editor");
 
         if (!isMounted || !containerRef.current) {
@@ -60,17 +72,39 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
           el: containerRef.current,
           height,
           initialEditType: "wysiwyg",
-          initialValue,
+          initialValue: markdownRef.current,
           placeholder,
           previewStyle: "vertical",
+          theme,
           usageStatistics: false,
         });
       };
 
-      void setupEditor();
+      const rebuildEditor = async (nextTheme: EditorTheme) => {
+        if (nextTheme === activeTheme) {
+          return;
+        }
+
+        markdownRef.current = editorRef.current?.getMarkdown() ?? markdownRef.current;
+        activeTheme = nextTheme;
+        destroyEditor();
+        await setupEditor(nextTheme);
+      };
+
+      void setupEditor(activeTheme);
+
+      const observer = new MutationObserver(() => {
+        void rebuildEditor(getAppliedEditorTheme());
+      });
+
+      observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ["class", "data-theme"],
+      });
 
       return () => {
         isMounted = false;
+        observer.disconnect();
         destroyEditor();
       };
     }, [height, initialValue, placeholder]);

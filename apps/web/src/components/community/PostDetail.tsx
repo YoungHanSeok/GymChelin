@@ -4,6 +4,7 @@ import { isAxiosError } from "axios";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { FormEvent, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import MarkdownViewer from "@/components/community/MarkdownViewer";
 import api from "@/lib/api";
 import { useAuthSession } from "@/lib/auth-session";
 import { authorName, formatDateLabel, type ApiComment, type ApiPost, type PostCategory } from "@/lib/community-types";
@@ -173,7 +174,9 @@ function CommentItem({
   const isRepliesHidden = hiddenReplies.has(comment.id);
   const isReplyFormOpen = Object.prototype.hasOwnProperty.call(replyDrafts, comment.id);
   const isDeleted = Boolean(comment.isDeleted || comment.status === "DELETED");
+  const isOwnComment = comment.author?.id === currentUserId;
   const canDelete = isAdmin || comment.author?.id === currentUserId;
+  const canReport = !isOwnComment;
 
   return (
     <div className={`${depth > 0 ? "border-l border-slate-200 pl-4" : ""}`}>
@@ -231,8 +234,10 @@ function CommentItem({
                 <div className="absolute left-0 top-7 z-20 w-28 rounded border border-slate-200 bg-white py-1 shadow-lg">
                   <button
                     type="button"
+                    aria-hidden={!canReport}
+                    tabIndex={canReport ? 0 : -1}
                     onClick={() => onReport(comment.id)}
-                    className="block w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100"
+                    className={`w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100 ${canReport ? "block" : "hidden"}`}
                   >
                     신고하기
                   </button>
@@ -535,8 +540,8 @@ export default function PostDetail({ category, backHref, backLabel }: PostDetail
         </div>
       </header>
 
-      <div className="whitespace-pre-wrap border-b border-slate-200 pb-6 text-base leading-7 text-slate-700">
-        {post.content}
+      <div className="border-b border-slate-200 pb-6 text-base leading-7 text-slate-700">
+        <MarkdownViewer content={post.content} />
       </div>
 
       <section className="border-b border-slate-200 pb-6">

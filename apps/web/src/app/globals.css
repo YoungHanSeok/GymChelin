@@ -144,3 +144,17 @@ a {
   background-color: #0f172a !important;
   color: #e2e8f0 !important;
 }
+
+.community-markdown-viewer .toastui-editor-contents {
+  font-size: 1rem;
+  line-height: 1.75;
+}
+
+.community-markdown-viewer .toastui-editor-contents img {
+  max-width: 100%;
+  height: auto;
+}
+
+:where(html.dark, html[data-theme="dark"]) .community-markdown-viewer .toastui-editor-contents {
+  color: #cbd5e1;
+}

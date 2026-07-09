@@ -63,7 +63,7 @@ export default function PostList({
 
             return (
               <article key={`${post.category}-${post.id}`}>
-                <Link href={postHref} className="block py-4 hover:bg-slate-50">
+                <Link href={postHref} className="group block py-4">
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
                       <div className="mb-1 flex flex-wrap items-center gap-2 text-[0.95rem] leading-5 text-slate-500">
@@ -71,7 +71,7 @@ export default function PostList({
                         <span>{post.author}</span>
                         <span>{post.createdAt}</span>
                       </div>
-                    <h3 className="truncate text-base font-semibold text-slate-900 hover:text-emerald-700">
+                    <h3 className="truncate text-base font-semibold text-slate-900 transition group-hover:text-emerald-700 group-hover:underline group-hover:decoration-emerald-400 group-hover:underline-offset-4">
                       {post.title}
                       <span className="ml-1 text-emerald-700">({post.commentCount})</span>
                     </h3>
