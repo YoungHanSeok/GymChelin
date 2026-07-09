@@ -14,7 +14,7 @@ import { PrismaService } from '../prisma/prisma.service';
 
 const POST_INCLUDE = {
   author: { select: { id: true, nickname: true, username: true } },
-  _count: { select: { comments: true, reactions: true } },
+  _count: { select: { comments: true, reactions: true, editHistories: true } },
 } as const;
 
 const COMMENT_INCLUDE = {
@@ -128,6 +128,72 @@ export class PostsService {
         authorId: input.authorId,
       },
       include: POST_INCLUDE,
+    });
+  }
+
+  async update(
+    postId: number,
+    input: {
+      title: string;
+      content: string;
+      editorId: number;
+      editorRole?: string;
+    },
+  ) {
+    const title = input.title?.trim();
+    const content = input.content?.trim();
+
+    if (!title || !content) {
+      throw new BadRequestException('제목과 내용을 입력해 주세요.');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const post = await tx.post.findFirst({
+        where: { id: postId, status: ContentStatus.ACTIVE },
+        include: POST_INCLUDE,
+      });
+
+      if (!post) {
+        throw new NotFoundException('게시글을 찾을 수 없습니다.');
+      }
+
+      if (post.authorId !== input.editorId && input.editorRole !== 'ADMIN') {
+        throw new ForbiddenException('게시글을 수정할 권한이 없습니다.');
+      }
+
+      if (post.title === title && post.content === content) {
+        return post;
+      }
+
+      await tx.postEditHistory.create({
+        data: {
+          postId,
+          editorId: input.editorId,
+          title: post.title,
+          content: post.content,
+        },
+      });
+
+      return tx.post.update({
+        where: { id: postId },
+        data: {
+          title,
+          content,
+        },
+        include: POST_INCLUDE,
+      });
+    });
+  }
+
+  async findHistory(postId: number) {
+    await this.ensurePost(postId);
+
+    return this.prisma.postEditHistory.findMany({
+      where: { postId },
+      include: {
+        editor: { select: { id: true, nickname: true, username: true } },
+      },
+      orderBy: { createdAt: 'desc' },
     });
   }
 

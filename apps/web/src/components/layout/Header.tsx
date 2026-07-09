@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuthSession } from "@/lib/auth-session";
 
 type Theme = "light" | "dark";
@@ -122,24 +122,93 @@ export default function Header() {
   const router = useRouter();
   const { user, isLoading, logout } = useAuthSession();
   const [isOpen, setIsOpen] = useState(false);
+  const [isAccountOpen, setIsAccountOpen] = useState(false);
+  const accountMenuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!isAccountOpen) {
+      return;
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!accountMenuRef.current?.contains(event.target as Node)) {
+        setIsAccountOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsAccountOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isAccountOpen]);
 
   const handleLogout = async () => {
     await logout();
     setIsOpen(false);
+    setIsAccountOpen(false);
     router.push("/");
     router.refresh();
   };
 
   const authControl = user ? (
-    <div className="hidden items-center gap-2 md:flex">
-      <span className="max-w-32 truncate text-sm font-medium text-slate-600">{user.nickname}</span>
+    <div ref={accountMenuRef} className="relative hidden md:block">
       <button
         type="button"
-        onClick={handleLogout}
-        className="inline-flex h-10 items-center rounded border border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:border-emerald-600 hover:text-emerald-700"
+        onClick={() => setIsAccountOpen((value) => !value)}
+        aria-expanded={isAccountOpen}
+        aria-haspopup="menu"
+        className="inline-flex h-10 max-w-44 items-center gap-2 rounded border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 transition hover:border-emerald-600 hover:text-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-100"
       >
-        로그아웃
+        <span className="truncate">{user.nickname}</span>
+        <svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4 shrink-0" fill="currentColor">
+          <path
+            fillRule="evenodd"
+            d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.168l3.71-3.938a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06Z"
+            clipRule="evenodd"
+          />
+        </svg>
       </button>
+
+      {isAccountOpen && (
+        <div
+          role="menu"
+          className="absolute right-0 mt-2 w-40 overflow-hidden rounded border border-slate-200 bg-white py-1 shadow-lg"
+        >
+          <Link
+            href="/profile"
+            role="menuitem"
+            onClick={() => setIsAccountOpen(false)}
+            className="block px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-950"
+          >
+            프로필
+          </Link>
+          <Link
+            href="/account"
+            role="menuitem"
+            onClick={() => setIsAccountOpen(false)}
+            className="block px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-950"
+          >
+            계정관리
+          </Link>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={handleLogout}
+            className="block w-full px-4 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-950"
+          >
+            로그아웃
+          </button>
+        </div>
+      )}
     </div>
   ) : (
     <Link
@@ -217,13 +286,32 @@ export default function Header() {
               </Link>
             ))}
             {user ? (
-              <button
-                type="button"
-                className="mt-2 rounded border border-slate-300 px-2 py-2 text-center text-sm font-semibold text-slate-700"
-                onClick={handleLogout}
-              >
-                로그아웃
-              </button>
+              <>
+                <div className="mt-2 border-t border-slate-200 pt-2 text-sm font-semibold text-slate-900">
+                  {user.nickname}
+                </div>
+                <Link
+                  href="/profile"
+                  className="rounded px-2 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                  onClick={() => setIsOpen(false)}
+                >
+                  프로필
+                </Link>
+                <Link
+                  href="/account"
+                  className="rounded px-2 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                  onClick={() => setIsOpen(false)}
+                >
+                  계정관리
+                </Link>
+                <button
+                  type="button"
+                  className="rounded border border-slate-300 px-2 py-2 text-center text-sm font-semibold text-slate-700"
+                  onClick={handleLogout}
+                >
+                  로그아웃
+                </button>
+              </>
             ) : (
               <Link
                 href="/login"

@@ -52,13 +52,23 @@ export type ApiPost = {
   title: string;
   content: string;
   createdAt: string;
+  updatedAt?: string;
   viewCount: number;
   author?: ApiAuthor | null;
   comments?: ApiComment[];
   _count?: {
     comments?: number;
     reactions?: number;
+    editHistories?: number;
   };
+};
+
+export type ApiPostEditHistory = {
+  id: number;
+  title: string;
+  content: string;
+  createdAt: string;
+  editor?: ApiAuthor | null;
 };
 
 export type ApiComment = {

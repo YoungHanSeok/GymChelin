@@ -50,6 +50,52 @@ const getPlainSummary = (content: string) =>
     .trim()
     .slice(0, 120);
 
+function CancelWriteDialog({
+  isSubmitting,
+  onClose,
+  onConfirm,
+}: {
+  isSubmitting: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4">
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="cancel-write-dialog-title"
+        className="w-full max-w-sm rounded border border-slate-200 bg-white p-5 shadow-xl"
+      >
+        <h2 id="cancel-write-dialog-title" className="text-base font-semibold text-slate-950">
+          작성 취소
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-slate-600">
+          작성 중인 변경사항이 없어질 수 있습니다. 취소하시겠습니까?
+        </p>
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isSubmitting}
+            className="rounded border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:border-slate-500 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            계속 작성
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={isSubmitting}
+            className="rounded bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
+          >
+            취소하기
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export default function WritePage() {
   const router = useRouter();
   const { user, isLoading } = useAuthSession();
@@ -61,6 +107,7 @@ export default function WritePage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
 
   const selectedCategory = useMemo(
     () => categoryOptions.find((option) => option.value === category) ?? categoryOptions[0],
@@ -154,6 +201,16 @@ export default function WritePage() {
     }
   };
 
+  const cancelWrite = () => {
+    setIsCancelDialogOpen(true);
+  };
+
+  const confirmCancelWrite = () => {
+    setIsCancelDialogOpen(false);
+    editorRef.current?.destroy();
+    router.push(selectedCategory.redirectPath);
+  };
+
   return (
     <div className="space-y-6">
       <header className="border-b border-slate-200 pb-4">
@@ -225,7 +282,15 @@ export default function WritePage() {
             />
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={cancelWrite}
+              disabled={isSubmitting}
+              className="rounded border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:border-slate-500 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              취소
+            </button>
             <button
               type="submit"
               disabled={isSubmitting || isLoading || !user}
@@ -235,6 +300,13 @@ export default function WritePage() {
             </button>
           </div>
         </form>
+      )}
+      {isCancelDialogOpen && (
+        <CancelWriteDialog
+          isSubmitting={isSubmitting}
+          onClose={() => setIsCancelDialogOpen(false)}
+          onConfirm={confirmCancelWrite}
+        />
       )}
     </div>
   );

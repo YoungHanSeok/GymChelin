@@ -46,13 +46,6 @@ export default function WorkoutLogBoardClient({ initialPosts, initialErrorMessag
 
   return (
     <div className="space-y-6">
-      <header className="border-b border-slate-200 pb-4">
-        <h1 className="text-2xl font-black text-slate-950">운동일지</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          오늘의 세트, 중량, 컨디션을 기록하고 다른 리프터에게 피드백을 받을 수 있습니다.
-        </p>
-      </header>
-
       <div className="flex flex-wrap items-center justify-end gap-3 border-b border-slate-200 pb-4">
         <div className="relative">
           <button

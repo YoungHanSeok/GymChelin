@@ -5,6 +5,7 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -21,6 +22,11 @@ type PostQuery = {
 
 type CreatePostBody = {
   category?: string;
+  title?: string;
+  content?: string;
+};
+
+type UpdatePostBody = {
   title?: string;
   content?: string;
 };
@@ -53,6 +59,11 @@ export class PostsController {
     return this.postsService.dailyPopular();
   }
 
+  @Get(':id/history')
+  findHistory(@Param('id') id: string) {
+    return this.postsService.findHistory(this.parsePostId(id));
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.postsService.findOne(this.parsePostId(id));
@@ -66,6 +77,21 @@ export class PostsController {
       title: body.title ?? '',
       content: body.content ?? '',
       authorId: user.id,
+    });
+  }
+
+  @Patch(':id')
+  @UseGuards(AuthGuard)
+  update(
+    @Param('id') id: string,
+    @Body() body: UpdatePostBody,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.postsService.update(this.parsePostId(id), {
+      title: body.title ?? '',
+      content: body.content ?? '',
+      editorId: user.id,
+      editorRole: user.role,
     });
   }
 

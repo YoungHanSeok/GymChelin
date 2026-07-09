@@ -4,6 +4,9 @@ declare module "@toast-ui/editor" {
   export type EditorOptions = {
     el: HTMLElement;
     height?: string;
+    hooks?: {
+      addImageBlobHook?: (blob: Blob | File, callback: (url: string, altText?: string) => void) => boolean | void;
+    };
     initialEditType?: "markdown" | "wysiwyg";
     initialValue?: string;
     placeholder?: string;
@@ -25,6 +28,8 @@ declare module "@toast-ui/editor" {
     getMarkdown(): string;
 
     setMarkdown(markdown: string, cursorToEnd?: boolean): void;
+
+    insertText(text: string): void;
 
     focus(): void;
 

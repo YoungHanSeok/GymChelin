@@ -73,27 +73,30 @@ enum AdSlot {
 }
 
 model User {
-  id               Int                @id @default(autoincrement())
-  email            String             @unique @db.VarChar(120)
-  username         String             @unique @db.VarChar(30)
-  password         String?
-  nickname         String             @unique @db.VarChar(30)
-  role             UserRole           @default(USER)
-  passwordReset    String             @default("N") @map("password_reset") @db.Char(1)
-  deleteYN         String             @default("N") @map("delete_yn") @db.Char(1)
-  changePwAt       DateTime           @default(now()) @map("change_pw_at")
-  createdAt        DateTime           @default(now()) @map("created_at")
-  updatedAt        DateTime           @updatedAt @map("updated_at")
-  socialAccounts   SocialAccount[]
-  posts            Post[]
-  comments         Comment[]
-  reactions        Reaction[]
-  commentReactions CommentReaction[]
-  routines         Routine[]
-  routineLikes     RoutineLike[]
-  gymReviews       GymReview[]
-  reports          Report[]           @relation("ReporterReports")
-  moderationLogs   ModerationAction[] @relation("AdminModerationActions")
+  id                Int                @id @default(autoincrement())
+  email             String             @unique @db.VarChar(120)
+  username          String             @unique @db.VarChar(30)
+  password          String?
+  nickname          String             @unique @db.VarChar(30)
+  role              UserRole           @default(USER)
+  passwordReset     String             @default("N") @map("password_reset") @db.Char(1)
+  deleteYN          String             @default("N") @map("delete_yn") @db.Char(1)
+  emailVerifiedAt   DateTime?          @map("email_verified_at")
+  changePwAt        DateTime           @default(now()) @map("change_pw_at")
+  deletedAt         DateTime?          @map("deleted_at")
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+  socialAccounts    SocialAccount[]
+  posts             Post[]
+  postEditHistories PostEditHistory[]  @relation("PostEditHistoryEditor")
+  comments          Comment[]
+  reactions         Reaction[]
+  commentReactions  CommentReaction[]
+  routines          Routine[]
+  routineLikes      RoutineLike[]
+  gymReviews        GymReview[]
+  reports           Report[]           @relation("ReporterReports")
+  moderationLogs    ModerationAction[] @relation("AdminModerationActions")
 
   @@map("users")
 }
@@ -112,21 +115,36 @@ model SocialAccount {
 }
 
 model Post {
-  id        Int           @id @default(autoincrement())
-  category  PostCategory
-  title     String        @db.VarChar(180)
-  content   String
-  status    ContentStatus @default(ACTIVE)
-  viewCount Int           @default(0) @map("view_count")
-  authorId  Int           @map("author_id")
-  createdAt DateTime      @default(now()) @map("created_at")
-  updatedAt DateTime      @updatedAt @map("updated_at")
-  author    User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  comments  Comment[]
-  reactions Reaction[]
+  id            Int               @id @default(autoincrement())
+  category      PostCategory
+  title         String            @db.VarChar(180)
+  content       String
+  status        ContentStatus     @default(ACTIVE)
+  viewCount     Int               @default(0) @map("view_count")
+  authorId      Int               @map("author_id")
+  createdAt     DateTime          @default(now()) @map("created_at")
+  updatedAt     DateTime          @updatedAt @map("updated_at")
+  author        User              @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  comments      Comment[]
+  reactions     Reaction[]
+  editHistories PostEditHistory[]
 
   @@index([category, status, createdAt])
   @@map("posts")
+}
+
+model PostEditHistory {
+  id        Int      @id @default(autoincrement())
+  postId    Int      @map("post_id")
+  editorId  Int      @map("editor_id")
+  title     String   @db.VarChar(180)
+  content   String
+  createdAt DateTime @default(now()) @map("created_at")
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  editor    User     @relation("PostEditHistoryEditor", fields: [editorId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt])
+  @@map("post_edit_histories")
 }
 
 model Comment {

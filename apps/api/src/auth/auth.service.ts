@@ -82,8 +82,8 @@ export class AuthService {
   }
 
   async me(userId: number) {
-    return this.prisma.user.findUnique({
-      where: { id: userId },
+    return this.prisma.user.findFirst({
+      where: { id: userId, deleteYN: 'N' },
       select: this.usersService.publicSelect(),
     });
   }
@@ -384,6 +384,10 @@ export class AuthService {
     });
 
     if (linkedAccount) {
+      if (linkedAccount.user.deleteYN === 'Y') {
+        throw new UnauthorizedException('탈퇴한 계정입니다.');
+      }
+
       return this.toPublicUser(linkedAccount.user);
     }
 
@@ -395,6 +399,10 @@ export class AuthService {
       where: { email },
     });
     if (existingUser) {
+      if (existingUser.deleteYN === 'Y') {
+        throw new UnauthorizedException('탈퇴한 계정입니다.');
+      }
+
       await this.prisma.socialAccount.create({
         data: {
           provider,
@@ -698,6 +706,7 @@ export class AuthService {
       username: user.username,
       nickname: user.nickname,
       role: user.role,
+      emailVerifiedAt: user.emailVerifiedAt,
       createdAt: user.createdAt,
     };
   }
