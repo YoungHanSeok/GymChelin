@@ -23,6 +23,10 @@ type Placement =
       type: "PLACEHOLDER";
       slot: string;
       label: string;
+    }
+  | {
+      type: "EMPTY";
+      slot: string;
     };
 
 declare global {
@@ -39,7 +43,25 @@ const slotSize: Record<string, string> = {
   GYM_DETAIL_SIDE: "min-h-64",
 };
 
-export default function AdSlot({ slot, label }: { slot: string; label?: string }) {
+type AdSlotProps = {
+  slot: string;
+  label?: string;
+  onVisibilityChange?: (slot: string, isVisible: boolean) => void;
+};
+
+const hasRenderablePlacement = (placement: Placement | null) => {
+  if (placement?.type === "DIRECT") {
+    return !!placement.banner.imageUrl && !!placement.banner.linkUrl;
+  }
+
+  if (placement?.type === "ADSENSE") {
+    return !!placement.adsenseClient && !!placement.adsenseSlot;
+  }
+
+  return false;
+};
+
+export default function AdSlot({ slot, onVisibilityChange }: AdSlotProps) {
   const [placement, setPlacement] = useState<Placement | null>(null);
 
   useEffect(() => {
@@ -49,34 +71,39 @@ export default function AdSlot({ slot, label }: { slot: string; label?: string }
       .get<Placement>(`/ads/placements/${slot}`)
       .then((response) => {
         if (mounted) {
-          setPlacement(response.data);
+          const nextPlacement = response.data;
+          setPlacement(nextPlacement);
+          onVisibilityChange?.(slot, hasRenderablePlacement(nextPlacement));
         }
       })
       .catch(() => {
         if (mounted) {
-          setPlacement({ type: "PLACEHOLDER", slot, label: label ?? "광고 영역" });
+          const emptyPlacement: Placement = { type: "EMPTY", slot };
+          setPlacement(emptyPlacement);
+          onVisibilityChange?.(slot, false);
         }
       });
 
     return () => {
       mounted = false;
     };
-  }, [label, slot]);
+  }, [onVisibilityChange, slot]);
 
   useEffect(() => {
-    if (placement?.type === "ADSENSE") {
+    if (placement?.type === "ADSENSE" && hasRenderablePlacement(placement)) {
       try {
         window.adsbygoogle = window.adsbygoogle || [];
         window.adsbygoogle.push({});
       } catch {
-        // AdSense script may be unavailable in local development.
+        // 로컬 개발 환경에서는 AdSense 스크립트가 없을 수 있다.
       }
     }
   }, [placement]);
 
-  const baseClass = `${slotSize[slot] ?? "min-h-24"} flex items-center justify-center rounded border border-dashed border-slate-300 bg-slate-50 text-center text-xs text-slate-500`;
+  const sizeClass = slotSize[slot] ?? "min-h-24";
+  const baseClass = `${sizeClass} flex items-center justify-center rounded border border-dashed border-slate-300 bg-slate-50 text-center text-xs text-slate-500`;
 
-  if (placement?.type === "DIRECT") {
+  if (placement?.type === "DIRECT" && hasRenderablePlacement(placement)) {
     return (
       <a
         href={placement.banner.linkUrl}
@@ -93,7 +120,7 @@ export default function AdSlot({ slot, label }: { slot: string; label?: string }
     );
   }
 
-  if (placement?.type === "ADSENSE") {
+  if (placement?.type === "ADSENSE" && hasRenderablePlacement(placement)) {
     return (
       <div className={baseClass}>
         <ins
@@ -107,5 +134,5 @@ export default function AdSlot({ slot, label }: { slot: string; label?: string }
     );
   }
 
-  return <div className={baseClass}>{label ?? placement?.label ?? "광고 영역"}</div>;
+  return <div className={sizeClass} aria-hidden="true" />;
 }
