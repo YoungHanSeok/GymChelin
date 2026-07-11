@@ -10,6 +10,7 @@ import {
   PostCategory,
   Prisma,
 } from '@prisma/client';
+import { isAdminRole } from '../auth/admin-role';
 import { PrismaService } from '../prisma/prisma.service';
 
 const POST_INCLUDE = {
@@ -157,7 +158,7 @@ export class PostsService {
         throw new NotFoundException('게시글을 찾을 수 없습니다.');
       }
 
-      if (post.authorId !== input.editorId && input.editorRole !== 'ADMIN') {
+      if (post.authorId !== input.editorId && !isAdminRole(input.editorRole)) {
         throw new ForbiddenException('게시글을 수정할 권한이 없습니다.');
       }
 
@@ -287,7 +288,7 @@ export class PostsService {
       return { ok: true };
     }
 
-    if (comment.authorId !== input.userId && input.userRole !== 'ADMIN') {
+    if (comment.authorId !== input.userId && !isAdminRole(input.userRole)) {
       throw new ForbiddenException('댓글을 삭제할 권한이 없습니다.');
     }
 

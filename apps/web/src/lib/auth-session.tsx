@@ -13,6 +13,12 @@ export type AuthUser = {
   createdAt: string;
 };
 
+export const isAdminRole = (role?: string | null) =>
+  role === "ADMIN";
+
+export const isSuperAdminRole = (role?: string | null) =>
+  role === "SUPER_ADMIN";
+
 type AuthSessionContextValue = {
   user: AuthUser | null;
   isLoading: boolean;

@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
-import { AdminGuard } from '../auth/admin.guard';
+import { SuperAdminGuard } from '../auth/super-admin.guard';
 import { AdsService } from './ads.service';
 
 @Controller('api/ads')
@@ -13,7 +13,7 @@ export class AdsController {
 }
 
 @Controller('api/admin/ads')
-@UseGuards(AdminGuard)
+@UseGuards(SuperAdminGuard)
 export class AdminAdsController {
   constructor(private readonly adsService: AdsService) {}
 

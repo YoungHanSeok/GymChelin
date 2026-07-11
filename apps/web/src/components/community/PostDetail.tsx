@@ -7,7 +7,7 @@ import { FormEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, use
 import MarkdownEditor, { type MarkdownEditorHandle } from "@/components/community/MarkdownEditor";
 import MarkdownViewer from "@/components/community/MarkdownViewer";
 import api from "@/lib/api";
-import { useAuthSession } from "@/lib/auth-session";
+import { isAdminRole, useAuthSession } from "@/lib/auth-session";
 import {
   authorName,
   formatDateLabel,
@@ -702,7 +702,8 @@ export default function PostDetail({ category, backHref, backLabel }: PostDetail
   const comments = post.comments ?? [];
   const commentCount = countComments(comments);
   const editHistoryCount = post._count?.editHistories ?? 0;
-  const canEditPost = Boolean(user && (post.author?.id === user.id || user.role === "ADMIN"));
+  const userIsAdmin = isAdminRole(user?.role);
+  const canEditPost = Boolean(user && (post.author?.id === user.id || userIsAdmin));
 
   return (
     <>
@@ -837,7 +838,7 @@ export default function PostDetail({ category, backHref, backLabel }: PostDetail
                     replyDrafts={replyDrafts}
                     isSubmitting={isSubmitting}
                     currentUserId={user?.id}
-                    isAdmin={user?.role === "ADMIN"}
+                    isAdmin={userIsAdmin}
                     onToggleReplies={handleToggleReplies}
                     onToggleMenu={(commentId) => setMenuCommentId((current) => (current === commentId ? null : commentId))}
                     onShowReplyForm={handleShowReplyForm}
