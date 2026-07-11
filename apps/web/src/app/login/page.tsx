@@ -92,7 +92,6 @@ export default function LoginPage() {
         <Link href="/" className="block text-center text-3xl font-black text-slate-950">
           짐슐랭
         </Link>
-        <p className="mt-2 text-center text-sm text-slate-500">웨이트 커뮤니티에 로그인하세요</p>
 
         {notice && <p className="mt-5 rounded bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{notice}</p>}
 

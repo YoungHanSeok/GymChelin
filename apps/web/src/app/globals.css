@@ -38,6 +38,29 @@ a {
   .button-secondary {
     @apply inline-flex w-full items-center justify-center rounded border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-emerald-600 hover:text-emerald-700;
   }
+
+  .loading-bar {
+    @apply h-1 w-full overflow-hidden rounded-full bg-slate-200;
+  }
+
+  .loading-bar-fill {
+    display: block;
+    width: 42%;
+    height: 100%;
+    border-radius: 9999px;
+    background: #10b981;
+    animation: loading-bar-slide 1s ease-in-out infinite;
+  }
+}
+
+@keyframes loading-bar-slide {
+  0% {
+    transform: translateX(-110%);
+  }
+
+  100% {
+    transform: translateX(250%);
+  }
 }
 
 :where(html.dark, html[data-theme="dark"]) body {
@@ -143,6 +166,10 @@ a {
   border-color: #475569 !important;
   background-color: #0f172a !important;
   color: #e2e8f0 !important;
+}
+
+:where(html.dark, html[data-theme="dark"]) .loading-bar {
+  background-color: #334155 !important;
 }
 
 .community-markdown-viewer .toastui-editor-contents {

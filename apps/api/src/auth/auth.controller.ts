@@ -11,6 +11,9 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { CreateUserDto } from '../users/dto/create-user.dto';
+import { FindIdDto } from '../users/dto/find-id.dto';
+import { FindPasswordDto } from '../users/dto/find-password.dto';
+import { UsersService } from '../users/users.service';
 import {
   ACCESS_TOKEN_COOKIE,
   AuthService,
@@ -25,11 +28,24 @@ type LoginBody = {
 
 @Controller('api/auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly usersService: UsersService,
+  ) {}
 
   @Post('signup')
   signup(@Body() body: CreateUserDto) {
     return this.authService.signup(body);
+  }
+
+  @Post('find-id')
+  findId(@Body() body: FindIdDto) {
+    return this.usersService.requestUsernameReminder(body);
+  }
+
+  @Post('find-password')
+  findPassword(@Body() body: FindPasswordDto) {
+    return this.usersService.requestInitialPassword(body);
   }
 
   @Post('login')

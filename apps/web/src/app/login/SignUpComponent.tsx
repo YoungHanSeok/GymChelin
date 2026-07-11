@@ -34,6 +34,35 @@ const getApiMessage = (error: unknown) => {
   return "회원가입 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
 };
 
+function EyeIcon({ isVisible }: { isVisible: boolean }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="h-5 w-5"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+    >
+      {isVisible ? (
+        <>
+          <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+          <circle cx="12" cy="12" r="3" />
+        </>
+      ) : (
+        <>
+          <path d="m2 2 20 20" />
+          <path d="M6.7 6.7C3.7 8.8 2 12 2 12s3.5 7 10 7c1.8 0 3.3-.5 4.7-1.2" />
+          <path d="M10.6 5.1C11.1 5 11.5 5 12 5c6.5 0 10 7 10 7a18.8 18.8 0 0 1-2.3 3.2" />
+          <path d="M14.1 14.1A3 3 0 0 1 9.9 9.9" />
+        </>
+      )}
+    </svg>
+  );
+}
+
 export default function SignUpModal({
   onClose,
   onComplete,
@@ -42,6 +71,8 @@ export default function SignUpModal({
   onComplete: (username: string) => void;
 }) {
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState(false);
 
   const {
     register,
@@ -125,13 +156,25 @@ export default function SignUpModal({
           <label htmlFor="signup-password" className="text-sm font-medium text-slate-700">
             비밀번호
           </label>
-          <input
-            id="signup-password"
-            type="password"
-            maxLength={SIGN_UP_LIMITS.password}
-            {...register("password")}
-            className="input-style"
-          />
+          <div className="relative">
+            <input
+              id="signup-password"
+              type={isPasswordVisible ? "text" : "password"}
+              maxLength={SIGN_UP_LIMITS.password}
+              disabled={isSubmitting}
+              {...register("password")}
+              className="input-style pr-11"
+            />
+            <button
+              type="button"
+              onClick={() => setIsPasswordVisible((current) => !current)}
+              disabled={isSubmitting}
+              className="absolute right-2 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+              aria-label={isPasswordVisible ? "비밀번호 숨기기" : "비밀번호 보기"}
+            >
+              <EyeIcon isVisible={isPasswordVisible} />
+            </button>
+          </div>
           {errors.password && <p className="text-xs text-red-600">{errors.password.message}</p>}
         </div>
 
@@ -139,13 +182,25 @@ export default function SignUpModal({
           <label htmlFor="signup-confirm-password" className="text-sm font-medium text-slate-700">
             비밀번호 확인
           </label>
-          <input
-            id="signup-confirm-password"
-            type="password"
-            maxLength={SIGN_UP_LIMITS.password}
-            {...register("confirmPassword")}
-            className="input-style"
-          />
+          <div className="relative">
+            <input
+              id="signup-confirm-password"
+              type={isConfirmPasswordVisible ? "text" : "password"}
+              maxLength={SIGN_UP_LIMITS.password}
+              disabled={isSubmitting}
+              {...register("confirmPassword")}
+              className="input-style pr-11"
+            />
+            <button
+              type="button"
+              onClick={() => setIsConfirmPasswordVisible((current) => !current)}
+              disabled={isSubmitting}
+              className="absolute right-2 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+              aria-label={isConfirmPasswordVisible ? "비밀번호 확인 숨기기" : "비밀번호 확인 보기"}
+            >
+              <EyeIcon isVisible={isConfirmPasswordVisible} />
+            </button>
+          </div>
           {errors.confirmPassword && (
             <p className="text-xs text-red-600">{errors.confirmPassword.message}</p>
           )}

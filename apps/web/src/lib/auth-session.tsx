@@ -44,10 +44,13 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
   }, []);
 
   const logout = useCallback(async () => {
+    setIsLoading(true);
+
     try {
       await api.post("/auth/logout");
     } finally {
       setUser(null);
+      setIsLoading(false);
     }
   }, []);
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, type ReactNode, useEffect, useState } from "react";
+import { type FormEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Modal from "@/app/_components/modalComponent";
 import api from "@/lib/api";
@@ -65,15 +65,98 @@ function StatusMessage({ type, children }: { type: "success" | "error" | "info";
   return <p className={`rounded px-3 py-2 text-sm ${className}`}>{children}</p>;
 }
 
+function EyeIcon({ isVisible }: { isVisible: boolean }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="h-5 w-5"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+    >
+      {isVisible ? (
+        <>
+          <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+          <circle cx="12" cy="12" r="3" />
+        </>
+      ) : (
+        <>
+          <path d="m2 2 20 20" />
+          <path d="M6.7 6.7C3.7 8.8 2 12 2 12s3.5 7 10 7c1.8 0 3.3-.5 4.7-1.2" />
+          <path d="M10.6 5.1C11.1 5 11.5 5 12 5c6.5 0 10 7 10 7a18.8 18.8 0 0 1-2.3 3.2" />
+          <path d="M14.1 14.1A3 3 0 0 1 9.9 9.9" />
+        </>
+      )}
+    </svg>
+  );
+}
+
+function PasswordInput({
+  id,
+  label,
+  value,
+  onChange,
+  autoComplete,
+  inputRef,
+  disabled,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  autoComplete: string;
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  disabled: boolean;
+}) {
+  const [isVisible, setIsVisible] = useState(false);
+
+  return (
+    <div>
+      <label htmlFor={id} className="mb-1.5 block text-sm font-medium text-slate-700">
+        {label}
+      </label>
+      <div className="relative">
+        <input
+          ref={inputRef}
+          id={id}
+          type={isVisible ? "text" : "password"}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          disabled={disabled}
+          className="input-style pr-11"
+          autoComplete={autoComplete}
+        />
+        <button
+          type="button"
+          onClick={() => setIsVisible((current) => !current)}
+          disabled={disabled}
+          className="absolute right-2 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+          aria-label={isVisible ? `${label} 숨기기` : `${label} 보기`}
+        >
+          <EyeIcon isVisible={isVisible} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function AccountPage() {
   const router = useRouter();
   const { user, isLoading, refreshUser, logout } = useAuthSession();
+  const currentPasswordRef = useRef<HTMLInputElement>(null);
+  const newPasswordRef = useRef<HTMLInputElement>(null);
+  const confirmNewPasswordRef = useRef<HTMLInputElement>(null);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [isPasswordSuccessOpen, setIsPasswordSuccessOpen] = useState(false);
+  const [isMovingToLogin, setIsMovingToLogin] = useState(false);
   const [verificationCode, setVerificationCode] = useState("");
   const [emailMessage, setEmailMessage] = useState<string | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
@@ -100,22 +183,46 @@ export default function AccountPage() {
     event.preventDefault();
     setPasswordMessage(null);
     setPasswordError(null);
+
+    const firstEmptyPasswordInput = [
+      { value: currentPassword, ref: currentPasswordRef },
+      { value: newPassword, ref: newPasswordRef },
+      { value: confirmNewPassword, ref: confirmNewPasswordRef },
+    ].find((field) => !field.value);
+
+    if (firstEmptyPasswordInput) {
+      setPasswordError("모든 값을 입력해 주세요.");
+      firstEmptyPasswordInput.ref.current?.focus();
+      return;
+    }
+
     setIsChangingPassword(true);
 
     try {
-      const response = await api.patch<UserResponse>("/users/me/password", {
+      await api.patch<UserResponse>("/users/me/password", {
         currentPassword,
         newPassword,
         confirmNewPassword,
       });
-      setPasswordMessage(response.data.message ?? "비밀번호가 변경되었습니다.");
       setCurrentPassword("");
       setNewPassword("");
       setConfirmNewPassword("");
+      setIsPasswordSuccessOpen(true);
     } catch (error) {
       setPasswordError(getApiMessage(error, "비밀번호 변경 중 오류가 발생했습니다."));
     } finally {
       setIsChangingPassword(false);
+    }
+  };
+
+  const moveToLoginAfterPasswordChange = async () => {
+    setIsMovingToLogin(true);
+
+    try {
+      await logout();
+    } finally {
+      router.replace("/login");
+      router.refresh();
     }
   };
 
@@ -214,7 +321,10 @@ export default function AccountPage() {
               >
                 {isRequestingEmail ? "요청 중" : "인증 코드 요청"}
               </button>
-              <form onSubmit={confirmEmailVerification} className="grid gap-3 sm:grid-cols-[minmax(0,220px)_auto]">
+              <form
+                onSubmit={confirmEmailVerification}
+                className="grid grid-cols-[minmax(0,1fr)_112px] gap-3 sm:grid-cols-[minmax(0,220px)_112px]"
+              >
                 <div>
                   <label htmlFor="email-code" className="sr-only">
                     이메일 인증 코드
@@ -229,7 +339,7 @@ export default function AccountPage() {
                     placeholder="6자리 코드"
                   />
                 </div>
-                <button type="submit" disabled={isConfirmingEmail} className="button-primary sm:w-auto">
+                <button type="submit" disabled={isConfirmingEmail} className="button-primary px-3">
                   {isConfirmingEmail ? "확인 중" : "인증 확인"}
                 </button>
               </form>
@@ -244,45 +354,33 @@ export default function AccountPage() {
       <section className="border border-slate-200 bg-white p-5">
         <h2 className="text-lg font-black text-slate-950">비밀번호 변경</h2>
         <form onSubmit={changePassword} className="mt-4 grid gap-4">
-          <div>
-            <label htmlFor="current-password" className="mb-1.5 block text-sm font-medium text-slate-700">
-              현재 비밀번호
-            </label>
-            <input
-              id="current-password"
-              type="password"
-              value={currentPassword}
-              onChange={(event) => setCurrentPassword(event.target.value)}
-              className="input-style"
-              autoComplete="current-password"
-            />
-          </div>
-          <div>
-            <label htmlFor="new-password" className="mb-1.5 block text-sm font-medium text-slate-700">
-              새 비밀번호
-            </label>
-            <input
-              id="new-password"
-              type="password"
-              value={newPassword}
-              onChange={(event) => setNewPassword(event.target.value)}
-              className="input-style"
-              autoComplete="new-password"
-            />
-          </div>
-          <div>
-            <label htmlFor="confirm-new-password" className="mb-1.5 block text-sm font-medium text-slate-700">
-              새 비밀번호 확인
-            </label>
-            <input
-              id="confirm-new-password"
-              type="password"
-              value={confirmNewPassword}
-              onChange={(event) => setConfirmNewPassword(event.target.value)}
-              className="input-style"
-              autoComplete="new-password"
-            />
-          </div>
+          <PasswordInput
+            id="current-password"
+            label="현재 비밀번호"
+            value={currentPassword}
+            onChange={setCurrentPassword}
+            autoComplete="current-password"
+            inputRef={currentPasswordRef}
+            disabled={isChangingPassword}
+          />
+          <PasswordInput
+            id="new-password"
+            label="새 비밀번호"
+            value={newPassword}
+            onChange={setNewPassword}
+            autoComplete="new-password"
+            inputRef={newPasswordRef}
+            disabled={isChangingPassword}
+          />
+          <PasswordInput
+            id="confirm-new-password"
+            label="새 비밀번호 확인"
+            value={confirmNewPassword}
+            onChange={setConfirmNewPassword}
+            autoComplete="new-password"
+            inputRef={confirmNewPasswordRef}
+            disabled={isChangingPassword}
+          />
           {passwordMessage && <StatusMessage type="success">{passwordMessage}</StatusMessage>}
           {passwordError && <StatusMessage type="error">{passwordError}</StatusMessage>}
           <button type="submit" disabled={isChangingPassword} className="button-primary sm:w-auto">
@@ -336,6 +434,25 @@ export default function AccountPage() {
             </button>
           </div>
         </Modal>
+      )}
+
+      {isPasswordSuccessOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
+          <div role="alertdialog" aria-modal="true" className="w-full max-w-md rounded bg-white p-6 shadow-xl">
+            <h2 className="text-xl font-black text-slate-950">비밀번호 변경 완료</h2>
+            <p className="mt-4 text-sm leading-6 text-slate-600">
+              비밀번호 변경이 완료되었습니다. 보안을 위해 다시 로그인해 주세요.
+            </p>
+            <button
+              type="button"
+              onClick={moveToLoginAfterPasswordChange}
+              disabled={isMovingToLogin}
+              className="button-primary mt-6"
+            >
+              {isMovingToLogin ? "이동 중" : "로그인 화면으로 이동"}
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  NotFoundException,
 } from '@nestjs/common';
 import { createHmac, randomInt } from 'crypto';
 import { hashPassword, verifyPassword } from '../common/password';
@@ -10,6 +11,9 @@ import { RedisService } from '../redis/redis.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ConfirmEmailVerificationDto } from './dto/confirm-email-verification.dto';
 import { CreateUserDto } from './dto/create-user.dto';
+import { FindIdDto } from './dto/find-id.dto';
+import { FindPasswordDto } from './dto/find-password.dto';
+import { UserMailService } from './user-mail.service';
 
 const USER_LIMITS = {
   email: 120,
@@ -44,6 +48,7 @@ const hasAllowedEmailTld = (email: string) => {
 };
 
 const normalizeUsername = (username: string) => username.trim();
+const normalizeEmail = (email: string) => email.trim().toLowerCase();
 const normalizeEmailVerificationCode = (code: string) => code.trim();
 
 @Injectable()
@@ -51,10 +56,11 @@ export class UsersService {
   constructor(
     private prisma: PrismaService,
     private readonly redisService: RedisService,
+    private readonly userMailService: UserMailService,
   ) {}
 
   async create(createUserDto: CreateUserDto) {
-    const email = createUserDto.email.trim().toLowerCase();
+    const email = normalizeEmail(createUserDto.email);
     const username = normalizeUsername(createUserDto.username);
     const nickname = normalizeUsername(
       createUserDto.nickname ?? createUserDto.username,
@@ -119,6 +125,115 @@ export class UsersService {
         username: username.trim(),
       },
     });
+  }
+
+  async requestUsernameReminder(dto: FindIdDto) {
+    const email = normalizeEmail(dto.email ?? '');
+    this.validateLookupEmail(email);
+
+    const user = await this.prisma.user.findFirst({
+      where: {
+        email,
+        deleteYN: 'N',
+      },
+      select: {
+        email: true,
+        username: true,
+      },
+    });
+
+    if (user) {
+      await this.userMailService.verifyConnection();
+      await this.userMailService.sendMail({
+        to: user.email,
+        subject: '[gymchelin] 아이디 찾기',
+        text: [
+          '요청하신 아이디는 아래와 같습니다.',
+          '',
+          `아이디: ${user.username}`,
+          '',
+          '본인이 요청하지 않았다면 이 메일을 무시해 주세요.',
+        ].join('\n'),
+      });
+    }
+
+    return {
+      message: '가입 정보가 확인되면 이메일로 아이디를 안내해 드립니다.',
+    };
+  }
+
+  async requestInitialPassword(dto: FindPasswordDto) {
+    const email = normalizeEmail(dto.email ?? '');
+    const username = normalizeUsername(dto.username ?? '');
+    this.validateLookupEmail(email);
+    this.validateLookupUsername(username);
+
+    const user = await this.prisma.user.findFirst({
+      where: {
+        email,
+        username,
+        deleteYN: 'N',
+        password: {
+          not: null,
+        },
+      },
+      select: {
+        id: true,
+        email: true,
+        password: true,
+        passwordReset: true,
+        changePwAt: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException(
+        '아이디와 이메일이 일치하는 계정을 찾을 수 없습니다.',
+      );
+    }
+
+    await this.userMailService.verifyConnection();
+
+    const initialPassword = this.createInitialPassword();
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password: hashPassword(initialPassword),
+        changePwAt: new Date(),
+        passwordReset: 'Y',
+      },
+    });
+
+    try {
+      await this.userMailService.sendMail({
+        to: user.email,
+        subject: '[gymchelin] 임시 비밀번호 안내',
+        text: [
+          '요청하신 비밀번호는 아래와 같이 임시 비밀번호로 변경되었습니다.',
+          '',
+          `임시 비밀번호: ${initialPassword}`,
+          '',
+          '로그인 후 반드시 새 비밀번호로 변경해 주세요.',
+          '본인이 요청하지 않았다면 즉시 비밀번호를 다시 변경해 주세요.',
+        ].join('\n'),
+      });
+    } catch (error) {
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          password: user.password,
+          changePwAt: user.changePwAt,
+          passwordReset: user.passwordReset,
+        },
+      });
+      throw error;
+    }
+
+    return {
+      message:
+        '입력한 정보가 확인되면 이메일로 임시 비밀번호를 안내해 드립니다.',
+    };
   }
 
   async changePassword(userId: number, dto: ChangePasswordDto) {
@@ -372,6 +487,71 @@ export class UsersService {
     if (newPassword !== confirmNewPassword) {
       throw new BadRequestException('새 비밀번호가 일치하지 않습니다.');
     }
+  }
+
+  private validateLookupEmail(email: string) {
+    if (!email) {
+      throw new BadRequestException('이메일을 입력해 주세요.');
+    }
+
+    if (email.length > USER_LIMITS.email) {
+      throw new BadRequestException(
+        `이메일은 최대 ${USER_LIMITS.email}자까지 입력할 수 있습니다.`,
+      );
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw new BadRequestException('올바른 이메일 형식을 입력해 주세요.');
+    }
+
+    if (!hasAllowedEmailTld(email)) {
+      throw new BadRequestException('지원하지 않는 이메일 도메인입니다.');
+    }
+  }
+
+  private validateLookupUsername(username: string) {
+    if (!username) {
+      throw new BadRequestException('아이디를 입력해 주세요.');
+    }
+
+    if (username.length > USER_LIMITS.username) {
+      throw new BadRequestException(
+        `아이디는 최대 ${USER_LIMITS.username}자까지 입력할 수 있습니다.`,
+      );
+    }
+
+    if (!/^[A-Za-z0-9_]+$/.test(username)) {
+      throw new BadRequestException(
+        '아이디는 영문, 숫자, 밑줄(_)만 사용할 수 있습니다.',
+      );
+    }
+  }
+
+  private createInitialPassword() {
+    const lowercase = 'abcdefghijklmnopqrstuvwxyz';
+    const numbers = '0123456789';
+    const specialCharacters = '!@#$%^&*';
+    const characters = [
+      ...this.pickCharacters(lowercase, 4),
+      ...this.pickCharacters(numbers, 3),
+      ...this.pickCharacters(specialCharacters, 1),
+    ];
+
+    for (let index = characters.length - 1; index > 0; index -= 1) {
+      const targetIndex = randomInt(0, index + 1);
+      [characters[index], characters[targetIndex]] = [
+        characters[targetIndex],
+        characters[index],
+      ];
+    }
+
+    return characters.join('');
+  }
+
+  private pickCharacters(source: string, count: number) {
+    return Array.from({ length: count }, () => {
+      return source[randomInt(0, source.length)] ?? source[0];
+    });
   }
 
   private emailVerificationKey(userId: number) {

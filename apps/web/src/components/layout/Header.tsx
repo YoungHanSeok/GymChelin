@@ -155,7 +155,7 @@ export default function Header() {
     await logout();
     setIsOpen(false);
     setIsAccountOpen(false);
-    router.push("/");
+    router.replace("/login");
     router.refresh();
   };
 
