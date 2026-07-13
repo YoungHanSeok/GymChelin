@@ -1,6 +1,6 @@
 import api from "@/lib/api";
 import { type ApiPost, type PostPreview, toPostPreview } from "@/lib/community-types";
-import WorkoutLogBoardClient from "./WorkoutLogBoardClient";
+import CommunityBoardClient from "@/components/community/CommunityBoardClient";
 
 export const dynamic = "force-dynamic";
 
@@ -28,5 +28,12 @@ const loadPosts = async (): Promise<{
 export default async function WorkoutLogPage() {
   const { posts, errorMessage } = await loadPosts();
 
-  return <WorkoutLogBoardClient initialPosts={posts} initialErrorMessage={errorMessage} />;
+  return (
+    <CommunityBoardClient
+      initialPosts={posts}
+      initialErrorMessage={errorMessage}
+      writeCategory="WORKOUT_LOG"
+      adLabel="운동일지 광고"
+    />
+  );
 }

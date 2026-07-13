@@ -3,7 +3,7 @@
 import AdSlot from "@/components/ads/AdSlot";
 import PostList from "@/components/community/PostList";
 import WriteEntryButton from "@/components/community/WriteEntryButton";
-import type { PostPreview } from "@/lib/community-types";
+import type { PostCategory, PostPreview } from "@/lib/community-types";
 import { useMemo, useState } from "react";
 
 type SortKey = "latest" | "views" | "comments" | "likes";
@@ -15,12 +15,19 @@ const sortOptions: { key: SortKey; label: string }[] = [
   { key: "likes", label: "추천순" },
 ];
 
-type WorkoutLogBoardClientProps = {
+type CommunityBoardClientProps = {
   initialPosts: PostPreview[];
   initialErrorMessage: string | null;
+  writeCategory: PostCategory;
+  adLabel: string;
 };
 
-export default function WorkoutLogBoardClient({ initialPosts, initialErrorMessage }: WorkoutLogBoardClientProps) {
+export default function CommunityBoardClient({
+  initialPosts,
+  initialErrorMessage,
+  writeCategory,
+  adLabel,
+}: CommunityBoardClientProps) {
   const [sortKey, setSortKey] = useState<SortKey>("latest");
   const [isSortOpen, setIsSortOpen] = useState(false);
 
@@ -28,15 +35,15 @@ export default function WorkoutLogBoardClient({ initialPosts, initialErrorMessag
     const nextPosts = [...initialPosts];
 
     if (sortKey === "views") {
-      return nextPosts.sort((a, b) => b.viewCount - a.viewCount);
+      return nextPosts.sort((first, second) => second.viewCount - first.viewCount);
     }
 
     if (sortKey === "comments") {
-      return nextPosts.sort((a, b) => b.commentCount - a.commentCount);
+      return nextPosts.sort((first, second) => second.commentCount - first.commentCount);
     }
 
     if (sortKey === "likes") {
-      return nextPosts.sort((a, b) => b.likeCount - a.likeCount);
+      return nextPosts.sort((first, second) => second.likeCount - first.likeCount);
     }
 
     return nextPosts;
@@ -52,6 +59,7 @@ export default function WorkoutLogBoardClient({ initialPosts, initialErrorMessag
             type="button"
             aria-label={`정렬 메뉴 열기, 현재 ${selectedSortLabel}`}
             aria-expanded={isSortOpen}
+            aria-haspopup="menu"
             onClick={() => setIsSortOpen((value) => !value)}
             className="inline-flex h-10 w-10 items-center justify-center rounded border border-slate-300 text-slate-700 hover:border-emerald-600 hover:text-emerald-700"
           >
@@ -63,11 +71,12 @@ export default function WorkoutLogBoardClient({ initialPosts, initialErrorMessag
             </svg>
           </button>
           {isSortOpen && (
-            <div className="absolute right-0 top-12 z-20 w-32 rounded border border-slate-200 bg-white py-1 shadow-lg">
+            <div role="menu" className="absolute right-0 top-12 z-20 w-32 rounded border border-slate-200 bg-white py-1 shadow-lg">
               {sortOptions.map((option) => (
                 <button
                   key={option.key}
                   type="button"
+                  role="menuitem"
                   onClick={() => {
                     setSortKey(option.key);
                     setIsSortOpen(false);
@@ -84,11 +93,11 @@ export default function WorkoutLogBoardClient({ initialPosts, initialErrorMessag
             </div>
           )}
         </div>
-        <WriteEntryButton category="WORKOUT_LOG">작성하기</WriteEntryButton>
+        <WriteEntryButton category={writeCategory}>작성하기</WriteEntryButton>
       </div>
 
       <PostList posts={sortedPosts} errorMessage={initialErrorMessage} />
-      <AdSlot slot="POST_LIST_INLINE" label="운동일지 광고" />
+      <AdSlot slot="POST_LIST_INLINE" label={adLabel} />
     </div>
   );
 }

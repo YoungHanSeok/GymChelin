@@ -1,44 +1,130 @@
 "use client";
 
 import AdSlot from "@/components/ads/AdSlot";
-import PostList from "@/components/community/PostList";
+import { HomePostCard, HomeRoutineCard } from "@/components/community/HomeFeedCard";
+import HomePopularList from "@/components/community/HomePopularList";
 import api from "@/lib/api";
 import {
-  type ApiGym,
   type ApiPost,
   type ApiRoutine,
-  type ApiWiki,
-  type GymPreview,
   type PostPreview,
   type RoutinePreview,
-  type WikiPreview,
   toPostPreview,
   toRoutinePreview,
-  toWikiPreview,
 } from "@/lib/community-types";
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
+type PopularTab = "today" | "week" | "month" | "notice";
+type FeedTab = "all" | "workout" | "free" | "routine";
+
+type HomeFeedItem =
+  | { key: string; kind: "post"; timestamp: number; post: PostPreview }
+  | { key: string; kind: "routine"; timestamp: number; routine: RoutinePreview };
+
+const popularTabs: { id: PopularTab; label: string }[] = [
+  { id: "today", label: "오늘의 인기글" },
+  { id: "week", label: "이번주 인기글" },
+  { id: "month", label: "이달의 인기글" },
+  { id: "notice", label: "공지사항" },
+];
+
+const feedTabs: { id: FeedTab; label: string }[] = [
+  { id: "all", label: "전체" },
+  { id: "workout", label: "운동일지" },
+  { id: "free", label: "자유게시판" },
+  { id: "routine", label: "나의 루틴" },
+];
+
+const dayInMilliseconds = 24 * 60 * 60 * 1000;
+
+function getTimestamp(value: string) {
+  const timestamp = new Date(value).getTime();
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
+function selectPopularPosts(posts: ApiPost[], days: number) {
+  const since = Date.now() - days * dayInMilliseconds;
+
+  return posts
+    .filter((post) => getTimestamp(post.createdAt) >= since)
+    .sort((first, second) => {
+      const viewDifference = second.viewCount - first.viewCount;
+
+      if (viewDifference !== 0) {
+        return viewDifference;
+      }
+
+      const likeDifference = (second._count?.reactions ?? 0) - (first._count?.reactions ?? 0);
+      return likeDifference !== 0 ? likeDifference : getTimestamp(second.createdAt) - getTimestamp(first.createdAt);
+    })
+    .slice(0, 10)
+    .map(toPostPreview);
+}
+
+function TabList<T extends string>({
+  tabs,
+  activeTab,
+  onChange,
+  label,
+}: {
+  tabs: { id: T; label: string }[];
+  activeTab: T;
+  onChange: (tab: T) => void;
+  label: string;
+}) {
+  return (
+    <div className="overflow-x-auto border-b border-slate-200 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div role="tablist" aria-label={label} className="flex min-w-max gap-6 sm:gap-8">
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab.id;
+
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              aria-controls={`${label}-panel`}
+              onClick={() => onChange(tab.id)}
+              className={`border-b-2 px-0.5 py-3 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                isActive
+                  ? "border-emerald-600 text-emerald-700"
+                  : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-900"
+              }`}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function EmptyFeed({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-12 text-center text-sm text-slate-500">
+      {children}
+    </div>
+  );
+}
+
 export default function HomePage() {
-  const [posts, setPosts] = useState<PostPreview[]>([]);
-  const [dailyPopular, setDailyPopular] = useState<{
-    FREE: PostPreview[];
-    WORKOUT_LOG: PostPreview[];
-  }>({ FREE: [], WORKOUT_LOG: [] });
-  const [routines, setRoutines] = useState<RoutinePreview[]>([]);
-  const [gyms, setGyms] = useState<GymPreview[]>([]);
-  const [wikiItems, setWikiItems] = useState<WikiPreview[]>([]);
+  const [posts, setPosts] = useState<ApiPost[]>([]);
+  const [dailyPopularPosts, setDailyPopularPosts] = useState<ApiPost[]>([]);
+  const [routines, setRoutines] = useState<ApiRoutine[]>([]);
+  const [activePopularTab, setActivePopularTab] = useState<PopularTab>("today");
+  const [activeFeedTab, setActiveFeedTab] = useState<FeedTab>("all");
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
 
-    const loadDashboard = async () => {
-      const [postsResult, dailyResult, routinesResult, gymsResult, wikiResult] = await Promise.allSettled([
-        api.get<ApiPost[]>("/posts", { params: { take: 8 } }),
+    const loadHome = async () => {
+      const [postsResult, dailyResult, routinesResult] = await Promise.allSettled([
+        api.get<ApiPost[]>("/posts", { params: { take: 50 } }),
         api.get<{ FREE: ApiPost[]; WORKOUT_LOG: ApiPost[] }>("/posts/daily-popular"),
-        api.get<ApiRoutine[]>("/routines", { params: { take: 6 } }),
-        api.get<{ places: ApiGym[] }>("/gyms/search", { params: { query: "헬스장" } }),
-        api.get<ApiWiki[]>("/wiki"),
+        api.get<ApiRoutine[]>("/routines", { params: { take: 12 } }),
       ]);
 
       if (!isMounted) {
@@ -46,155 +132,114 @@ export default function HomePage() {
       }
 
       if (postsResult.status === "fulfilled") {
-        setPosts(postsResult.value.data.map(toPostPreview));
+        setPosts(postsResult.value.data);
       }
 
       if (dailyResult.status === "fulfilled") {
-        setDailyPopular({
-          FREE: dailyResult.value.data.FREE.map(toPostPreview),
-          WORKOUT_LOG: dailyResult.value.data.WORKOUT_LOG.map(toPostPreview),
-        });
+        setDailyPopularPosts([...dailyResult.value.data.FREE, ...dailyResult.value.data.WORKOUT_LOG]);
       }
 
       if (routinesResult.status === "fulfilled") {
-        setRoutines(routinesResult.value.data.map(toRoutinePreview));
+        setRoutines(routinesResult.value.data);
       }
 
-      if (gymsResult.status === "fulfilled") {
-        setGyms(gymsResult.value.data.places);
-      }
-
-      if (wikiResult.status === "fulfilled") {
-        setWikiItems(wikiResult.value.data.map(toWikiPreview));
-      }
+      setIsLoading(false);
     };
 
-    void loadDashboard();
+    void loadHome();
 
     return () => {
       isMounted = false;
     };
   }, []);
 
-  const popularPosts = useMemo(() => {
-    const dailyPosts = [...dailyPopular.FREE, ...dailyPopular.WORKOUT_LOG];
-    return dailyPosts.length > 0 ? dailyPosts : posts;
-  }, [dailyPopular, posts]);
+  const popularPostsByTab = useMemo<Record<Exclude<PopularTab, "notice">, PostPreview[]>>(() => {
+    const todayPosts =
+      dailyPopularPosts.length > 0 ? selectPopularPosts(dailyPopularPosts, 1) : selectPopularPosts(posts, 1);
 
-  const freePosts = dailyPopular.FREE.length > 0 ? dailyPopular.FREE : posts.filter((post) => post.category === "FREE");
-  const workoutPosts =
-    dailyPopular.WORKOUT_LOG.length > 0
-      ? dailyPopular.WORKOUT_LOG
-      : posts.filter((post) => post.category === "WORKOUT_LOG");
+    return {
+      today: todayPosts,
+      week: selectPopularPosts(posts, 7),
+      month: selectPopularPosts(posts, 30),
+    };
+  }, [dailyPopularPosts, posts]);
 
-  const stats = [
-    ["오늘 인기글", String(popularPosts.length), "커뮤니티"],
-    ["등록 루틴", String(routines.length), "좋아요순"],
-    ["헬스장 리뷰", String(gyms.reduce((sum, gym) => sum + gym.reviewCount, 0)), "자체 평점"],
-    ["위키 운동", String(wikiItems.length), "검색 가능"],
-  ];
+  const feedItems = useMemo<Record<FeedTab, HomeFeedItem[]>>(() => {
+    const postItems: HomeFeedItem[] = posts.map((post) => ({
+      key: `post-${post.category}-${post.id}`,
+      kind: "post",
+      timestamp: getTimestamp(post.createdAt),
+      post: toPostPreview(post),
+    }));
+    const routineItems: HomeFeedItem[] = routines.map((routine) => ({
+      key: `routine-${routine.id}`,
+      kind: "routine",
+      timestamp: getTimestamp(routine.createdAt),
+      routine: toRoutinePreview(routine),
+    }));
+
+    return {
+      all: [...postItems, ...routineItems].sort((first, second) => second.timestamp - first.timestamp).slice(0, 12),
+      workout: postItems.filter((item) => item.kind === "post" && item.post.category === "WORKOUT_LOG").slice(0, 12),
+      free: postItems.filter((item) => item.kind === "post" && item.post.category === "FREE").slice(0, 12),
+      routine: routineItems.slice(0, 12),
+    };
+  }, [posts, routines]);
+
+  const activePopularPosts = activePopularTab === "notice" ? [] : popularPostsByTab[activePopularTab];
+  const activeFeedItems = feedItems[activeFeedTab];
 
   return (
-    <div className="space-y-8">
-      <section className="border-b border-slate-200 pb-6">
-        <p className="text-sm font-semibold text-emerald-700">웨이트 커뮤니티</p>
-        <h1 className="mt-2 text-3xl font-black text-slate-950">짐슐랭</h1>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-          헬스장 리뷰, 운동일지, 루틴 공유, 웨이트 지식을 한곳에서 찾는 트레이닝 커뮤니티입니다.
-        </p>
-      </section>
+    <div className="space-y-10">
+      <h1 className="sr-only">짐슐랭 메인</h1>
 
-      <section className="grid gap-4 md:grid-cols-4">
-        {stats.map(([label, value, helper]) => (
-          <div key={label} className="border-t border-slate-900 pt-3">
-            <strong className="block text-2xl font-black text-slate-950">{value}</strong>
-            <span className="mt-1 block text-sm font-medium text-slate-700">{label}</span>
-            <span className="text-xs text-slate-500">{helper}</span>
-          </div>
-        ))}
+      <section aria-label="기간별 인기글">
+        <TabList
+          tabs={popularTabs}
+          activeTab={activePopularTab}
+          onChange={setActivePopularTab}
+          label="인기글"
+        />
+        <div
+          id="인기글-panel"
+          role="tabpanel"
+          className="mt-5 space-y-2"
+        >
+          {isLoading ? (
+            <EmptyFeed>인기글을 불러오고 있습니다.</EmptyFeed>
+          ) : activePopularTab === "notice" ? (
+            <EmptyFeed>아직 등록된 공지사항이 없습니다.</EmptyFeed>
+          ) : (
+            <HomePopularList
+              key={activePopularTab}
+              posts={activePopularPosts}
+              showNew={activePopularTab === "today"}
+            />
+          )}
+        </div>
       </section>
-
-      <PostList posts={popularPosts} title="메뉴별 일일 인기글" />
 
       <AdSlot slot="POST_LIST_INLINE" label="게시글 중간 광고" />
 
-      <div className="grid gap-8 xl:grid-cols-2">
-        <PostList posts={freePosts} title="자유게시판 인기글" href="/boards/free" />
-        <PostList posts={workoutPosts} title="운동일지 인기글" href="/boards/workout-log" />
-      </div>
-
-      <section className="grid gap-8 xl:grid-cols-2">
-        <div className="border-b border-slate-200 bg-white">
-          <div className="flex items-center justify-between border-b border-slate-200 py-3">
-            <h2 className="text-base font-semibold text-slate-950">나의 루틴 인기순</h2>
-            <Link href="/routines" className="text-sm font-medium text-emerald-700 hover:text-emerald-900">
-              더보기
-            </Link>
-          </div>
-          <div className="divide-y divide-slate-100">
-            {routines.length === 0 ? (
-              <p className="py-6 text-sm text-slate-500">아직 등록된 루틴이 없습니다.</p>
-            ) : (
-              routines.map((routine) => (
-                <article key={routine.id} className="py-4">
-                  <h3 className="font-semibold text-slate-950">{routine.title}</h3>
-                  <p className="mt-1 text-sm leading-6 text-slate-600">{routine.summary}</p>
-                  <div className="mt-2 text-xs text-slate-500">
-                    {routine.author} · 좋아요 {routine.likeCount} · {routine.createdAt}
-                  </div>
-                </article>
-              ))
-            )}
-          </div>
-        </div>
-
-        <div className="border-b border-slate-200 bg-white">
-          <div className="flex items-center justify-between border-b border-slate-200 py-3">
-            <h2 className="text-base font-semibold text-slate-950">헬스장 리뷰 요약</h2>
-            <Link href="/gyms" className="text-sm font-medium text-emerald-700 hover:text-emerald-900">
-              더보기
-            </Link>
-          </div>
-          <div className="divide-y divide-slate-100">
-            {gyms.length === 0 ? (
-              <p className="py-6 text-sm text-slate-500">아직 표시할 헬스장 리뷰가 없습니다.</p>
-            ) : (
-              gyms.map((gym) => (
-                <article key={gym.providerPlaceId} className="py-4">
-                  <h3 className="font-semibold text-slate-950">{gym.name}</h3>
-                  <p className="mt-1 text-sm text-slate-600">{gym.addressName}</p>
-                  <div className="mt-2 text-xs text-slate-500">
-                    짐슐랭 {gym.avgRating.toFixed(1)}점 · 리뷰 {gym.reviewCount}개 · 외부 평점 공식 제공 시 표기
-                  </div>
-                </article>
-              ))
-            )}
-          </div>
-        </div>
-      </section>
-
-      <section className="border-t border-slate-200 pt-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold text-slate-950">웨이트 위키 빠른 검색</h2>
-          <Link href="/wiki" className="text-sm font-medium text-emerald-700 hover:text-emerald-900">
-            전체 보기
-          </Link>
-        </div>
-        <div className="mt-4 grid gap-4 md:grid-cols-3">
-          {wikiItems.length === 0 ? (
-            <p className="text-sm text-slate-500 md:col-span-3">아직 등록된 위키 콘텐츠가 없습니다.</p>
+      <section aria-label="통합 커뮤니티 목록">
+        <TabList tabs={feedTabs} activeTab={activeFeedTab} onChange={setActiveFeedTab} label="커뮤니티" />
+        <div
+          id="커뮤니티-panel"
+          role="tabpanel"
+          className="mt-5 space-y-3"
+        >
+          {isLoading ? (
+            <EmptyFeed>커뮤니티 글을 불러오고 있습니다.</EmptyFeed>
+          ) : activeFeedItems.length === 0 ? (
+            <EmptyFeed>아직 표시할 글이 없습니다.</EmptyFeed>
           ) : (
-            wikiItems.slice(0, 3).map((item) => (
-              <Link
-                key={item.slug}
-                href="/wiki"
-                className="border-t border-slate-300 pt-3 hover:border-emerald-600"
-              >
-                <h3 className="font-semibold text-slate-950">{item.name}</h3>
-                <p className="mt-1 text-sm leading-6 text-slate-600">{item.description}</p>
-                <p className="mt-2 text-xs text-slate-500">{item.targetMuscles.join(", ")}</p>
-              </Link>
-            ))
+            activeFeedItems.map((item) =>
+              item.kind === "post" ? (
+                <HomePostCard key={item.key} post={item.post} />
+              ) : (
+                <HomeRoutineCard key={item.key} routine={item.routine} />
+              ),
+            )
           )}
         </div>
       </section>

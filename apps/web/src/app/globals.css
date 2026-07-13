@@ -183,6 +183,10 @@ a {
   height: auto;
 }
 
+.home-popular-swiper .swiper-pagination-bullet-active {
+  background: #059669 !important;
+}
+
 :where(html.dark, html[data-theme="dark"]) .community-markdown-viewer .toastui-editor-contents {
   color: #cbd5e1;
 }
