@@ -16,7 +16,11 @@ import { PostsService } from './posts.service';
 
 type PostQuery = {
   category?: string;
-  q?: string;
+  page?: string;
+  q?: unknown;
+  keyword?: unknown;
+  searchType?: string;
+  sort?: string;
   take?: string;
 };
 

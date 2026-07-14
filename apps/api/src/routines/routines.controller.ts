@@ -16,6 +16,9 @@ import { RoutinesService } from './routines.service';
 
 type RoutineQuery = {
   q?: string;
+  keyword?: string;
+  searchType?: 'title' | 'titleContent' | 'author';
+  page?: string;
   take?: string;
   sort?: string;
 };
@@ -24,6 +27,7 @@ type ExerciseCatalogQuery = {
   q?: string;
   bodyPart?: string;
   equipment?: string;
+  page?: string;
   take?: string;
 };
 

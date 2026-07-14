@@ -317,28 +317,40 @@ const toRoutineSummary = (content: string) => {
 export class RoutinesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  findAll(query: { q?: string; take?: string; sort?: string }) {
+  async findAll(query: {
+    q?: unknown;
+    keyword?: unknown;
+    searchType?: unknown;
+    page?: unknown;
+    take?: unknown;
+    sort?: unknown;
+  }) {
+    const page = this.parsePage(query.page);
     const take = this.parseTake(query.take);
-    const q = query.q?.trim();
+    const searchWhere = this.parseSearchWhere(query);
+    const where: Prisma.RoutineWhereInput = {
+      status: ContentStatus.ACTIVE,
+      ...searchWhere,
+    };
 
-    return this.prisma.routine.findMany({
-      where: {
-        status: ContentStatus.ACTIVE,
-        ...(q
-          ? {
-              OR: [
-                { title: { contains: q, mode: 'insensitive' } },
-                { summary: { contains: q, mode: 'insensitive' } },
-                { content: { contains: q, mode: 'insensitive' } },
-                { publicCode: { contains: q, mode: 'insensitive' } },
-              ],
-            }
-          : {}),
-      },
+    const total = await this.prisma.routine.count({ where });
+    const totalPages = Math.max(1, Math.ceil(total / take));
+    const resolvedPage = Math.min(page, totalPages);
+    const items = await this.prisma.routine.findMany({
+      where,
       include: ROUTINE_LIST_INCLUDE,
       orderBy: this.parseSort(query.sort),
+      skip: (resolvedPage - 1) * take,
       take,
     });
+
+    return {
+      items,
+      total,
+      page: resolvedPage,
+      take,
+      totalPages,
+    };
   }
 
   async findOne(id: number) {
@@ -1002,38 +1014,147 @@ export class RoutinesService {
     return target.includes('public_code') || target.includes('publicCode');
   }
 
-  private parseTake(value?: string) {
+  private parsePage(value: unknown) {
+    if (value === undefined || value === '') {
+      return 1;
+    }
+
+    if (typeof value !== 'string' || !/^[1-9]\d*$/.test(value)) {
+      throw new BadRequestException('페이지는 1 이상의 정수여야 합니다.');
+    }
+
+    const page = Number(value);
+    if (!Number.isSafeInteger(page)) {
+      throw new BadRequestException('페이지 값을 확인해 주세요.');
+    }
+
+    return page;
+  }
+
+  private parseTake(value: unknown) {
     if (value === undefined || value === '') {
       return 20;
     }
 
+    if (typeof value !== 'string' || !/^[1-9]\d*$/.test(value)) {
+      throw new BadRequestException('조회 개수는 1 이상의 정수여야 합니다.');
+    }
+
     const take = Number(value);
-    if (!Number.isSafeInteger(take) || take < 1) {
+    if (!Number.isSafeInteger(take) || take > 50) {
       throw new BadRequestException('조회 개수를 확인해 주세요.');
     }
 
-    return Math.min(take, 50);
+    return take;
   }
 
-  private parseSort(value?: string): Prisma.RoutineOrderByWithRelationInput[] {
+  private parseSort(value: unknown): Prisma.RoutineOrderByWithRelationInput[] {
+    if (value !== undefined && typeof value !== 'string') {
+      throw new BadRequestException('정렬 방식을 확인해 주세요.');
+    }
+
     const sort = value?.toLowerCase() ?? 'latest';
 
     if (sort === 'latest') {
-      return [{ createdAt: 'desc' }];
+      return [{ createdAt: 'desc' }, { id: 'desc' }];
     }
 
     if (sort === 'views') {
-      return [{ viewCount: 'desc' }, { createdAt: 'desc' }];
+      return [{ viewCount: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }];
     }
 
     if (sort === 'comments') {
-      return [{ comments: { _count: 'desc' } }, { createdAt: 'desc' }];
+      return [
+        { comments: { _count: 'desc' } },
+        { createdAt: 'desc' },
+        { id: 'desc' },
+      ];
     }
 
     if (sort === 'likes') {
-      return [{ likeCount: 'desc' }, { createdAt: 'desc' }];
+      return [{ likeCount: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }];
     }
 
     throw new BadRequestException('지원하지 않는 정렬 방식입니다.');
+  }
+
+  private parseSearchWhere(query: {
+    q?: unknown;
+    keyword?: unknown;
+    searchType?: unknown;
+  }): Prisma.RoutineWhereInput {
+    const rawKeyword = query.keyword === undefined ? query.q : query.keyword;
+    const keyword = this.parseSearchKeyword(rawKeyword);
+    const searchType = this.parseSearchType(query.searchType);
+    const isLegacySearch =
+      query.keyword === undefined && query.searchType === undefined;
+
+    if (!keyword) {
+      return {};
+    }
+
+    if (searchType === 'title') {
+      return { title: { contains: keyword, mode: 'insensitive' } };
+    }
+
+    if (searchType === 'author') {
+      return {
+        author: {
+          is: {
+            OR: [
+              { username: { contains: keyword, mode: 'insensitive' } },
+              { nickname: { contains: keyword, mode: 'insensitive' } },
+            ],
+          },
+        },
+      };
+    }
+
+    return {
+      OR: [
+        { title: { contains: keyword, mode: 'insensitive' } },
+        { summary: { contains: keyword, mode: 'insensitive' } },
+        { content: { contains: keyword, mode: 'insensitive' } },
+        ...(isLegacySearch
+          ? [
+              {
+                publicCode: {
+                  contains: keyword,
+                  mode: Prisma.QueryMode.insensitive,
+                },
+              },
+            ]
+          : []),
+      ],
+    };
+  }
+
+  private parseSearchKeyword(value: unknown) {
+    if (value === undefined || value === '') {
+      return '';
+    }
+
+    if (typeof value !== 'string') {
+      throw new BadRequestException('검색어를 확인해 주세요.');
+    }
+
+    const keyword = value.trim();
+    if (keyword.length > 100) {
+      throw new BadRequestException('검색어는 100자 이내로 입력해 주세요.');
+    }
+
+    return keyword;
+  }
+
+  private parseSearchType(value: unknown) {
+    if (value === undefined || value === '') {
+      return 'titleContent' as const;
+    }
+
+    if (value !== 'title' && value !== 'titleContent' && value !== 'author') {
+      throw new BadRequestException('지원하지 않는 검색 방식입니다.');
+    }
+
+    return value;
   }
 }

@@ -43,6 +43,9 @@ export type ExerciseCatalogItem = {
 export type ExerciseCatalogResponse = {
   items: ExerciseCatalogItem[];
   total: number;
+  page: number;
+  take: number;
+  totalPages: number;
 };
 
 export type ExerciseCatalogFilters = {

@@ -4,6 +4,55 @@ export type { ApiRoutine } from "@/lib/routine-types";
 
 export type PostCategory = "FREE" | "WORKOUT_LOG";
 
+export type CommunitySortKey = "latest" | "views" | "comments" | "likes";
+
+export type CommunitySearchType = "title" | "titleContent" | "author";
+
+export type CommunityPostListQuery = {
+  page: number;
+  sort: CommunitySortKey;
+  searchType: CommunitySearchType;
+  keyword: string;
+};
+
+export type CommunitySearchParams = Record<string, string | string[] | undefined>;
+
+export type ApiPostListResponse = {
+  items: ApiPost[];
+  total: number;
+  page: number;
+  take: number;
+  totalPages: number;
+};
+
+export const COMMUNITY_POST_PAGE_SIZE = 10;
+
+const communitySortKeys: CommunitySortKey[] = ["latest", "views", "comments", "likes"];
+const communitySearchTypes: CommunitySearchType[] = ["title", "titleContent", "author"];
+
+const firstSearchParam = (value: string | string[] | undefined) =>
+  Array.isArray(value) ? value[0] : value;
+
+export const parseCommunityPostListQuery = (
+  searchParams: CommunitySearchParams,
+): CommunityPostListQuery => {
+  const pageValue = firstSearchParam(searchParams.page);
+  const parsedPage = pageValue && /^\d+$/.test(pageValue) ? Number(pageValue) : 1;
+  const sortValue = firstSearchParam(searchParams.sort);
+  const searchTypeValue = firstSearchParam(searchParams.searchType);
+
+  return {
+    page: Number.isSafeInteger(parsedPage) && parsedPage > 0 ? parsedPage : 1,
+    sort: communitySortKeys.includes(sortValue as CommunitySortKey)
+      ? (sortValue as CommunitySortKey)
+      : "latest",
+    searchType: communitySearchTypes.includes(searchTypeValue as CommunitySearchType)
+      ? (searchTypeValue as CommunitySearchType)
+      : "title",
+    keyword: firstSearchParam(searchParams.keyword)?.trim() ?? "",
+  };
+};
+
 export type PostPreview = {
   id: number;
   category: PostCategory;

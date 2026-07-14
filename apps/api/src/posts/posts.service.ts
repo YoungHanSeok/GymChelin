@@ -27,6 +27,19 @@ type CommentEntity = Prisma.CommentGetPayload<{
   include: typeof COMMENT_INCLUDE;
 }>;
 
+type PostListSort = 'latest' | 'views' | 'comments' | 'likes';
+type PostSearchType = 'title' | 'titleContent' | 'author';
+
+type PostListQuery = {
+  category?: string;
+  page?: string;
+  q?: unknown;
+  keyword?: unknown;
+  searchType?: string;
+  sort?: string;
+  take?: string;
+};
+
 export type CommentView = {
   id: number;
   content: string;
@@ -46,30 +59,157 @@ export type CommentView = {
 export class PostsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(query: { category?: string; q?: string; take?: string }) {
+  async findAll(query: PostListQuery) {
     const category = query.category
       ? this.parseCategory(query.category)
       : undefined;
-    const take = Math.min(Number(query.take ?? 20) || 20, 50);
-    const q = query.q?.trim();
+    const page = this.parsePositiveInteger(query.page, '페이지', 1);
+    const take = this.parsePositiveInteger(query.take, '페이지 크기', 10, 50);
+    const sort = this.parsePostListSort(query.sort);
+    const legacyKeyword = this.parseSearchKeyword(query.q);
+    const keyword = this.parseSearchKeyword(query.keyword) || legacyKeyword;
+    const searchType = query.searchType
+      ? this.parsePostSearchType(query.searchType)
+      : legacyKeyword
+        ? 'titleContent'
+        : 'title';
+    const where: Prisma.PostWhereInput = {
+      status: ContentStatus.ACTIVE,
+      category,
+      ...this.buildPostSearchWhere(searchType, keyword),
+    };
+    const orderBy = this.buildPostListOrderBy(sort);
 
-    return this.prisma.post.findMany({
-      where: {
-        status: ContentStatus.ACTIVE,
-        category,
-        ...(q
-          ? {
-              OR: [
-                { title: { contains: q, mode: 'insensitive' } },
-                { content: { contains: q, mode: 'insensitive' } },
-              ],
-            }
-          : {}),
-      },
+    const total = await this.prisma.post.count({ where });
+    const totalPages = Math.ceil(total / take);
+    const resolvedPage = totalPages === 0 ? 1 : Math.min(page, totalPages);
+    const items = await this.prisma.post.findMany({
+      where,
       include: POST_INCLUDE,
-      orderBy: [{ createdAt: 'desc' }],
+      orderBy,
+      skip: (resolvedPage - 1) * take,
       take,
     });
+
+    return {
+      items,
+      total,
+      page: resolvedPage,
+      take,
+      totalPages,
+    };
+  }
+
+  private buildPostSearchWhere(
+    searchType: PostSearchType,
+    keyword?: string,
+  ): Prisma.PostWhereInput {
+    if (!keyword) {
+      return {};
+    }
+
+    const contains = { contains: keyword, mode: Prisma.QueryMode.insensitive };
+
+    if (searchType === 'title') {
+      return { title: contains };
+    }
+
+    if (searchType === 'author') {
+      return {
+        author: {
+          is: {
+            OR: [{ username: contains }, { nickname: contains }],
+          },
+        },
+      };
+    }
+
+    return {
+      OR: [{ title: contains }, { content: contains }],
+    };
+  }
+
+  private buildPostListOrderBy(
+    sort: PostListSort,
+  ): Prisma.PostOrderByWithRelationInput[] {
+    const tieBreakers: Prisma.PostOrderByWithRelationInput[] = [
+      { createdAt: 'desc' },
+      { id: 'desc' },
+    ];
+
+    if (sort === 'views') {
+      return [{ viewCount: 'desc' }, ...tieBreakers];
+    }
+
+    if (sort === 'comments') {
+      return [{ comments: { _count: 'desc' } }, ...tieBreakers];
+    }
+
+    if (sort === 'likes') {
+      return [{ reactions: { _count: 'desc' } }, ...tieBreakers];
+    }
+
+    return tieBreakers;
+  }
+
+  private parsePostListSort(value?: string): PostListSort {
+    const sort = value ?? 'latest';
+
+    if (!['latest', 'views', 'comments', 'likes'].includes(sort)) {
+      throw new BadRequestException('지원하지 않는 정렬 방식입니다.');
+    }
+
+    return sort as PostListSort;
+  }
+
+  private parsePostSearchType(value: string): PostSearchType {
+    if (!['title', 'titleContent', 'author'].includes(value)) {
+      throw new BadRequestException('지원하지 않는 검색 유형입니다.');
+    }
+
+    return value as PostSearchType;
+  }
+
+  private parseSearchKeyword(value?: unknown) {
+    if (value === undefined || value === '') {
+      return '';
+    }
+
+    if (typeof value !== 'string') {
+      throw new BadRequestException('검색어를 확인해 주세요.');
+    }
+
+    const keyword = value.trim();
+
+    if (keyword.length > 100) {
+      throw new BadRequestException('검색어는 100자 이내로 입력해 주세요.');
+    }
+
+    return keyword;
+  }
+
+  private parsePositiveInteger(
+    value: string | undefined,
+    label: string,
+    defaultValue: number,
+    max?: number,
+  ) {
+    if (value === undefined) {
+      return defaultValue;
+    }
+
+    if (!/^[1-9]\d*$/.test(value)) {
+      throw new BadRequestException(`${label}는 1 이상의 정수여야 합니다.`);
+    }
+
+    const parsed = Number(value);
+
+    if (!Number.isSafeInteger(parsed) || (max !== undefined && parsed > max)) {
+      const rangeMessage = max ? `1부터 ${max}까지` : '1 이상의 안전한 정수';
+      throw new BadRequestException(`${label}는 ${rangeMessage}여야 합니다.`);
+    }
+
+    return parsed;
   }
 
   async findOne(id: number) {

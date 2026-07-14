@@ -91,6 +91,53 @@ export type ApiRoutine = {
   };
 };
 
+export type RoutineSortKey = "latest" | "views" | "comments" | "likes";
+
+export type RoutineSearchType = "title" | "titleContent" | "author";
+
+export type RoutineListQuery = {
+  page: number;
+  sort: RoutineSortKey;
+  searchType: RoutineSearchType;
+  keyword: string;
+};
+
+export type RoutineSearchParams = Record<string, string | string[] | undefined>;
+
+export type ApiRoutineListResponse = {
+  items: ApiRoutine[];
+  total: number;
+  page: number;
+  take: number;
+  totalPages: number;
+};
+
+export const ROUTINE_PAGE_SIZE = 10;
+
+const routineSortKeys: RoutineSortKey[] = ["latest", "views", "comments", "likes"];
+const routineSearchTypes: RoutineSearchType[] = ["title", "titleContent", "author"];
+
+const firstRoutineSearchParam = (value: string | string[] | undefined) =>
+  Array.isArray(value) ? value[0] : value;
+
+export const parseRoutineListQuery = (searchParams: RoutineSearchParams): RoutineListQuery => {
+  const pageValue = firstRoutineSearchParam(searchParams.page);
+  const parsedPage = pageValue && /^\d+$/.test(pageValue) ? Number(pageValue) : 1;
+  const sortValue = firstRoutineSearchParam(searchParams.sort);
+  const searchTypeValue = firstRoutineSearchParam(searchParams.searchType);
+
+  return {
+    page: Number.isSafeInteger(parsedPage) && parsedPage > 0 ? parsedPage : 1,
+    sort: routineSortKeys.includes(sortValue as RoutineSortKey)
+      ? (sortValue as RoutineSortKey)
+      : "latest",
+    searchType: routineSearchTypes.includes(searchTypeValue as RoutineSearchType)
+      ? (searchTypeValue as RoutineSearchType)
+      : "title",
+    keyword: firstRoutineSearchParam(searchParams.keyword)?.trim() ?? "",
+  };
+};
+
 export type RoutineLikeResponse = {
   liked: boolean;
   likeCount: number;

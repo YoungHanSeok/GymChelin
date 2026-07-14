@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { z } from "zod";
 import Modal from "@/app/_components/modalComponent";
+import Pagination from "@/components/common/Pagination";
 import api from "@/lib/api";
 import { isAdminRole, useAuthSession } from "@/lib/auth-session";
 
@@ -61,6 +62,8 @@ const defaultListFilters: ListFilters = {
   equipment: "",
   status: "ALL",
 };
+
+const ADMIN_EXERCISE_PAGE_SIZE = 10;
 
 const getApiMessage = (error: unknown, fallback: string) => {
   if (
@@ -131,7 +134,7 @@ export default function AdminRoutineExercisesPage() {
           equipment: nextFilters.equipment,
           status: nextFilters.status,
           page,
-          take: 30,
+          take: ADMIN_EXERCISE_PAGE_SIZE,
         },
       });
       setItems(response.data.items);
@@ -178,7 +181,7 @@ export default function AdminRoutineExercisesPage() {
         const [optionsResponse, listResponse] = await Promise.all([
           api.get<RoutineExerciseOptions>("/admin/routine-exercises/options"),
           api.get<RoutineExerciseListResponse>("/admin/routine-exercises", {
-            params: { status: "ALL", page: 1, take: 30 },
+            params: { status: "ALL", page: 1, take: ADMIN_EXERCISE_PAGE_SIZE },
           }),
         ]);
         setOptions(optionsResponse.data);
@@ -488,28 +491,16 @@ export default function AdminRoutineExercisesPage() {
               </table>
             </div>
 
-            {totalPages > 1 && (
-              <nav aria-label="루틴 운동 목록 페이지" className="flex items-center justify-center gap-3">
-                <button
-                  type="button"
-                  disabled={isListLoading || currentPage <= 1}
-                  onClick={() => void loadExercises(appliedFilters, currentPage - 1)}
-                  className="button-secondary w-auto px-4 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  이전
-                </button>
-                <span className="text-sm font-semibold text-slate-600">
-                  {currentPage} / {totalPages}
-                </span>
-                <button
-                  type="button"
-                  disabled={isListLoading || currentPage >= totalPages}
-                  onClick={() => void loadExercises(appliedFilters, currentPage + 1)}
-                  className="button-secondary w-auto px-4 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  다음
-                </button>
-              </nav>
+            {!listError && total > 0 && (
+              <div className="flex justify-center overflow-x-auto pb-1">
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  disabled={isListLoading}
+                  ariaLabel="관리자 루틴 운동 목록 페이지"
+                  onPageChange={(page) => void loadExercises(appliedFilters, page)}
+                />
+              </div>
             )}
           </section>
         </>

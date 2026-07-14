@@ -17,6 +17,14 @@ import { useEffect, useMemo, useState } from "react";
 type PopularTab = "today" | "week" | "month" | "notice";
 type FeedTab = "all" | "workout" | "free" | "routine";
 
+type PaginatedResponse<Item> = {
+  items: Item[];
+  total: number;
+  page: number;
+  take: number;
+  totalPages: number;
+};
+
 type HomeFeedItem =
   | { key: string; kind: "post"; timestamp: number; post: PostPreview }
   | { key: string; kind: "routine"; timestamp: number; routine: RoutinePreview };
@@ -122,9 +130,9 @@ export default function HomePage() {
 
     const loadHome = async () => {
       const [postsResult, dailyResult, routinesResult] = await Promise.allSettled([
-        api.get<ApiPost[]>("/posts", { params: { take: 50 } }),
+        api.get<PaginatedResponse<ApiPost>>("/posts", { params: { page: 1, take: 50 } }),
         api.get<{ FREE: ApiPost[]; WORKOUT_LOG: ApiPost[] }>("/posts/daily-popular"),
-        api.get<ApiRoutine[]>("/routines", { params: { take: 12 } }),
+        api.get<PaginatedResponse<ApiRoutine>>("/routines", { params: { page: 1, take: 12 } }),
       ]);
 
       if (!isMounted) {
@@ -132,7 +140,7 @@ export default function HomePage() {
       }
 
       if (postsResult.status === "fulfilled") {
-        setPosts(postsResult.value.data);
+        setPosts(postsResult.value.data.items);
       }
 
       if (dailyResult.status === "fulfilled") {
@@ -140,7 +148,7 @@ export default function HomePage() {
       }
 
       if (routinesResult.status === "fulfilled") {
-        setRoutines(routinesResult.value.data);
+        setRoutines(routinesResult.value.data.items);
       }
 
       setIsLoading(false);

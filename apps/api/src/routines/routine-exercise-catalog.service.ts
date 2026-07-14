@@ -34,13 +34,13 @@ export const ROUTINE_EQUIPMENTS = [
 ] as const;
 
 type CatalogQuery = {
-  q?: string;
-  bodyPart?: string;
-  targetBodyPart?: string;
-  equipment?: string;
-  status?: string;
-  page?: string;
-  take?: string;
+  q?: unknown;
+  bodyPart?: unknown;
+  targetBodyPart?: unknown;
+  equipment?: unknown;
+  status?: unknown;
+  page?: unknown;
+  take?: unknown;
 };
 
 type CatalogInput = {
@@ -55,9 +55,10 @@ export class RoutineExerciseCatalogService {
   constructor(private readonly prisma: PrismaService) {}
 
   async findPublic(query: CatalogQuery) {
-    const q = query.q?.trim();
-    const targetBodyPart = query.bodyPart?.trim();
-    const equipment = query.equipment?.trim();
+    const q = this.parseOptionalQueryString(query.q, '검색어', 100);
+    const targetBodyPart = this.parsePublicTargetBodyPart(query.bodyPart);
+    const equipment = this.parsePublicEquipment(query.equipment);
+    const page = this.parsePage(query.page);
     const take = this.parseTake(query.take, 50, 50);
     const where: Prisma.RoutineExerciseCatalogWhereInput = {
       isActive: true,
@@ -74,20 +75,21 @@ export class RoutineExerciseCatalogService {
       ...(equipment ? { equipment } : {}),
     };
 
-    const [items, total] = await this.prisma.$transaction([
-      this.prisma.routineExerciseCatalog.findMany({
-        where,
-        select: {
-          id: true,
-          name: true,
-          targetBodyPart: true,
-          equipment: true,
-        },
-        orderBy: [{ name: 'asc' }, { id: 'asc' }],
-        take,
-      }),
-      this.prisma.routineExerciseCatalog.count({ where }),
-    ]);
+    const total = await this.prisma.routineExerciseCatalog.count({ where });
+    const totalPages = Math.max(1, Math.ceil(total / take));
+    const resolvedPage = Math.min(page, totalPages);
+    const items = await this.prisma.routineExerciseCatalog.findMany({
+      where,
+      select: {
+        id: true,
+        name: true,
+        targetBodyPart: true,
+        equipment: true,
+      },
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
+      skip: (resolvedPage - 1) * take,
+      take,
+    });
 
     return {
       items: items.map((item) => ({
@@ -97,6 +99,9 @@ export class RoutineExerciseCatalogService {
         equipment: item.equipment,
       })),
       total,
+      page: resolvedPage,
+      take,
+      totalPages,
     };
   }
 
@@ -124,9 +129,17 @@ export class RoutineExerciseCatalogService {
   }
 
   async findAdmin(query: CatalogQuery) {
-    const q = query.q?.trim();
-    const targetBodyPart = query.targetBodyPart?.trim();
-    const equipment = query.equipment?.trim();
+    const q = this.parseOptionalQueryString(query.q, '검색어', 100);
+    const targetBodyPart = this.parseOptionalQueryString(
+      query.targetBodyPart,
+      '타겟 부위',
+      50,
+    );
+    const equipment = this.parseOptionalQueryString(
+      query.equipment,
+      '기구',
+      80,
+    );
     const isActive = this.parseStatus(query.status);
     const page = this.parsePage(query.page);
     const take = this.parseTake(query.take, 30);
@@ -145,22 +158,22 @@ export class RoutineExerciseCatalogService {
       ...(isActive === null ? {} : { isActive }),
     };
 
-    const [items, total] = await this.prisma.$transaction([
-      this.prisma.routineExerciseCatalog.findMany({
-        where,
-        orderBy: [{ isActive: 'desc' }, { name: 'asc' }, { id: 'asc' }],
-        skip: (page - 1) * take,
-        take,
-      }),
-      this.prisma.routineExerciseCatalog.count({ where }),
-    ]);
+    const total = await this.prisma.routineExerciseCatalog.count({ where });
+    const totalPages = Math.max(1, Math.ceil(total / take));
+    const resolvedPage = Math.min(page, totalPages);
+    const items = await this.prisma.routineExerciseCatalog.findMany({
+      where,
+      orderBy: [{ isActive: 'desc' }, { name: 'asc' }, { id: 'asc' }],
+      skip: (resolvedPage - 1) * take,
+      take,
+    });
 
     return {
       items,
       total,
-      page,
+      page: resolvedPage,
       take,
-      totalPages: Math.max(1, Math.ceil(total / take)),
+      totalPages,
     };
   }
 
@@ -282,7 +295,11 @@ export class RoutineExerciseCatalogService {
     return value;
   }
 
-  private parseStatus(value?: string) {
+  private parseStatus(value: unknown) {
+    if (value !== undefined && typeof value !== 'string') {
+      throw new BadRequestException('사용 상태 값을 확인해 주세요.');
+    }
+
     const status = value?.trim().toUpperCase() || 'ALL';
 
     if (status === 'ALL') {
@@ -298,34 +315,97 @@ export class RoutineExerciseCatalogService {
     throw new BadRequestException('올바른 사용 상태를 입력해 주세요.');
   }
 
-  private parseTake(
-    value: string | undefined,
-    defaultValue: number,
-    maxValue = 200,
-  ) {
+  private parseTake(value: unknown, defaultValue: number, maxValue = 200) {
     if (value === undefined || value === '') {
       return defaultValue;
     }
 
-    const take = Number(value);
-    if (!/^\d+$/.test(value) || !Number.isSafeInteger(take) || take < 1) {
-      throw new BadRequestException('조회 개수는 1 이상의 정수여야 합니다.');
+    if (typeof value !== 'string') {
+      throw new BadRequestException('조회 개수를 확인해 주세요.');
     }
 
-    return Math.min(take, maxValue);
+    const take = Number(value);
+    if (
+      !/^[1-9]\d*$/.test(value) ||
+      !Number.isSafeInteger(take) ||
+      take > maxValue
+    ) {
+      throw new BadRequestException(
+        `조회 개수는 1 이상 ${maxValue} 이하의 정수여야 합니다.`,
+      );
+    }
+
+    return take;
   }
 
-  private parsePage(value?: string) {
+  private parsePage(value: unknown) {
     if (value === undefined || value === '') {
       return 1;
     }
 
+    if (typeof value !== 'string') {
+      throw new BadRequestException('페이지 값을 확인해 주세요.');
+    }
+
     const page = Number(value);
-    if (!/^\d+$/.test(value) || !Number.isSafeInteger(page) || page < 1) {
+    if (!/^[1-9]\d*$/.test(value) || !Number.isSafeInteger(page)) {
       throw new BadRequestException('페이지는 1 이상의 정수여야 합니다.');
     }
 
     return page;
+  }
+
+  private parseOptionalQueryString(
+    value: unknown,
+    label: string,
+    maxLength: number,
+  ) {
+    if (value === undefined || value === '') {
+      return '';
+    }
+
+    if (typeof value !== 'string') {
+      throw new BadRequestException(`${label} 값을 확인해 주세요.`);
+    }
+
+    const normalized = value.trim();
+    if (normalized.length > maxLength) {
+      throw new BadRequestException(
+        `${label}는 ${maxLength}자 이내로 입력해 주세요.`,
+      );
+    }
+
+    return normalized;
+  }
+
+  private parsePublicTargetBodyPart(value: unknown) {
+    const targetBodyPart = this.parseOptionalQueryString(
+      value,
+      '타겟 부위',
+      50,
+    );
+
+    if (
+      targetBodyPart &&
+      !(ROUTINE_TARGET_BODY_PARTS as readonly string[]).includes(targetBodyPart)
+    ) {
+      throw new BadRequestException('지원하지 않는 타겟 부위입니다.');
+    }
+
+    return targetBodyPart;
+  }
+
+  private parsePublicEquipment(value: unknown) {
+    const equipment = this.parseOptionalQueryString(value, '기구', 80);
+
+    if (
+      equipment &&
+      !(ROUTINE_EQUIPMENTS as readonly string[]).includes(equipment)
+    ) {
+      throw new BadRequestException('지원하지 않는 기구입니다.');
+    }
+
+    return equipment;
   }
 
   private throwCatalogWriteError(error: unknown): never {

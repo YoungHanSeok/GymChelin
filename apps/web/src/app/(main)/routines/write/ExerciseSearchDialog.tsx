@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
+import Pagination from "@/components/common/Pagination";
 import api from "@/lib/api";
 import type {
   ExerciseCatalogFilters,
@@ -20,6 +21,20 @@ const emptyFilters: ExerciseCatalogFilters = {
   equipments: [],
 };
 
+type ExerciseSearchValues = {
+  query: string;
+  bodyPart: string;
+  equipment: string;
+};
+
+const emptySearchValues: ExerciseSearchValues = {
+  query: "",
+  bodyPart: "",
+  equipment: "",
+};
+
+const EXERCISE_PAGE_SIZE = 10;
+
 export default function ExerciseSearchDialog({
   dayLabel,
   isOpen,
@@ -33,6 +48,9 @@ export default function ExerciseSearchDialog({
   const [filters, setFilters] = useState<ExerciseCatalogFilters>(emptyFilters);
   const [items, setItems] = useState<ExerciseCatalogItem[]>([]);
   const [total, setTotal] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [appliedSearchValues, setAppliedSearchValues] = useState<ExerciseSearchValues>(emptySearchValues);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isCustomOpen, setIsCustomOpen] = useState(false);
@@ -41,28 +59,29 @@ export default function ExerciseSearchDialog({
   const [customEquipment, setCustomEquipment] = useState("");
   const [customError, setCustomError] = useState<string | null>(null);
 
-  const searchExercises = async (searchValues?: {
-    query?: string;
-    bodyPart?: string;
-    equipment?: string;
-  }) => {
+  const searchExercises = async (searchValues: ExerciseSearchValues, page: number) => {
     setIsLoading(true);
     setError(null);
 
     try {
       const response = await api.get<ExerciseCatalogResponse>("/routines/exercise-catalog", {
         params: {
-          q: searchValues?.query ?? query,
-          bodyPart: searchValues?.bodyPart ?? bodyPart,
-          equipment: searchValues?.equipment ?? equipment,
-          take: 30,
+          q: searchValues.query,
+          bodyPart: searchValues.bodyPart,
+          equipment: searchValues.equipment,
+          page,
+          take: EXERCISE_PAGE_SIZE,
         },
       });
       setItems(response.data.items);
       setTotal(response.data.total);
+      setCurrentPage(response.data.page);
+      setTotalPages(response.data.totalPages);
     } catch {
       setItems([]);
       setTotal(0);
+      setCurrentPage(1);
+      setTotalPages(0);
       setError("운동 목록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
     } finally {
       setIsLoading(false);
@@ -83,6 +102,9 @@ export default function ExerciseSearchDialog({
     setCustomEquipment("");
     setCustomError(null);
     setError(null);
+    setAppliedSearchValues(emptySearchValues);
+    setCurrentPage(1);
+    setTotalPages(0);
 
     const loadDialogData = async () => {
       setIsLoading(true);
@@ -90,15 +112,21 @@ export default function ExerciseSearchDialog({
       try {
         const [filterResponse, catalogResponse] = await Promise.all([
           api.get<ExerciseCatalogFilters>("/routines/exercise-catalog/filters"),
-          api.get<ExerciseCatalogResponse>("/routines/exercise-catalog", { params: { take: 30 } }),
+          api.get<ExerciseCatalogResponse>("/routines/exercise-catalog", {
+            params: { page: 1, take: EXERCISE_PAGE_SIZE },
+          }),
         ]);
         setFilters(filterResponse.data);
         setItems(catalogResponse.data.items);
         setTotal(catalogResponse.data.total);
+        setCurrentPage(catalogResponse.data.page);
+        setTotalPages(catalogResponse.data.totalPages);
       } catch {
         setFilters(emptyFilters);
         setItems([]);
         setTotal(0);
+        setCurrentPage(1);
+        setTotalPages(0);
         setError("운동 목록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
       } finally {
         setIsLoading(false);
@@ -115,14 +143,21 @@ export default function ExerciseSearchDialog({
 
   const submitSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    void searchExercises();
+    const nextSearchValues = { query: query.trim(), bodyPart, equipment };
+    setAppliedSearchValues(nextSearchValues);
+    void searchExercises(nextSearchValues, 1);
   };
 
   const resetFilters = () => {
     setQuery("");
     setBodyPart("");
     setEquipment("");
-    void searchExercises({ query: "", bodyPart: "", equipment: "" });
+    setAppliedSearchValues(emptySearchValues);
+    void searchExercises(emptySearchValues, 1);
+  };
+
+  const changePage = (page: number) => {
+    void searchExercises(appliedSearchValues, page);
   };
 
   const submitCustomExercise = (event: FormEvent<HTMLFormElement>) => {
@@ -221,9 +256,13 @@ export default function ExerciseSearchDialog({
               <button
                 type="submit"
                 disabled={isLoading}
-                className="rounded bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+                aria-label="운동 검색"
+                className="inline-flex h-10 w-10 items-center justify-center rounded bg-slate-950 text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-400"
               >
-                검색
+                <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="m20 20-4-4" />
+                </svg>
               </button>
             </div>
             <div className="flex items-center justify-between gap-3">
@@ -269,6 +308,18 @@ export default function ExerciseSearchDialog({
               </ul>
             )}
           </div>
+
+          {!error && total > 0 && (
+            <div className="mt-4 flex justify-center overflow-x-auto pb-1">
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                disabled={isLoading}
+                ariaLabel="운동 검색 결과 페이지"
+                onPageChange={changePage}
+              />
+            </div>
+          )}
 
           <section className="mt-5 rounded border border-dashed border-slate-300 p-4">
             <button

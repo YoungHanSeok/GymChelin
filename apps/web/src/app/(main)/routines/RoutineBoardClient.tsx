@@ -1,24 +1,26 @@
 "use client";
 
-import { isAxiosError } from "axios";
 import Link from "next/link";
-import { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 import AdSlot from "@/components/ads/AdSlot";
+import Pagination from "@/components/common/Pagination";
 import CommunityContentToolbar, {
   type CommunitySortOption,
 } from "@/components/community/CommunityContentToolbar";
-import api from "@/lib/api";
 import {
   authorName,
+  type CommunitySearchType,
   formatRelativeDateLabel,
   toPlainTextPreview,
 } from "@/lib/community-types";
 import {
+  type ApiRoutineListResponse,
   type ApiRoutine,
+  type RoutineListQuery,
+  type RoutineSortKey,
   routineDayLabel,
 } from "@/lib/routine-types";
-
-type RoutineSortKey = "latest" | "views" | "comments" | "likes";
 
 const sortOptions: CommunitySortOption<RoutineSortKey>[] = [
   { key: "latest", label: "최신순" },
@@ -61,50 +63,67 @@ function exerciseCount(routine: ApiRoutine) {
 }
 
 type RoutineBoardClientProps = {
-  initialRoutines: ApiRoutine[];
+  initialResponse: ApiRoutineListResponse;
   initialErrorMessage: string | null;
+  query: RoutineListQuery;
 };
 
-export default function RoutineBoardClient({ initialRoutines, initialErrorMessage }: RoutineBoardClientProps) {
-  const [routines, setRoutines] = useState(initialRoutines);
-  const [sortKey, setSortKey] = useState<RoutineSortKey>("latest");
-  const [errorMessage, setErrorMessage] = useState(initialErrorMessage);
-  const [isLoading, setIsLoading] = useState(false);
+export default function RoutineBoardClient({ initialResponse, initialErrorMessage, query }: RoutineBoardClientProps) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [copyErrorMessage, setCopyErrorMessage] = useState<string | null>(null);
+  const routines = initialResponse.items;
 
-  const changeSort = async (nextSortKey: RoutineSortKey) => {
-    if (nextSortKey === sortKey || isLoading) {
+  const retry = () => {
+    startTransition(() => {
+      router.refresh();
+    });
+  };
+
+  const navigate = (nextQuery: Partial<RoutineListQuery>) => {
+    const mergedQuery = { ...query, ...nextQuery };
+
+    if (
+      mergedQuery.page === query.page
+      && mergedQuery.sort === query.sort
+      && mergedQuery.searchType === query.searchType
+      && mergedQuery.keyword === query.keyword
+    ) {
+      if (initialErrorMessage) {
+        retry();
+      }
       return;
     }
 
-    const previousSortKey = sortKey;
-    setSortKey(nextSortKey);
-    setIsLoading(true);
-    setErrorMessage(null);
+    const searchParams = new URLSearchParams({
+      page: String(mergedQuery.page),
+      sort: mergedQuery.sort,
+      searchType: mergedQuery.searchType,
+    });
 
-    try {
-      const response = await api.get<ApiRoutine[]>("/routines", {
-        params: { sort: nextSortKey },
-      });
-      setRoutines(response.data);
-    } catch (error) {
-      setSortKey(previousSortKey);
-      setErrorMessage(
-        isAxiosError(error) && error.response?.status === 400
-          ? "지원하지 않는 정렬 방식입니다."
-          : "루틴 목록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.",
-      );
-    } finally {
-      setIsLoading(false);
+    if (mergedQuery.keyword) {
+      searchParams.set("keyword", mergedQuery.keyword);
     }
+
+    startTransition(() => {
+      router.push(`${pathname}?${searchParams.toString()}`);
+    });
+  };
+
+  const searchRoutines = (searchType: CommunitySearchType, keyword: string) => {
+    navigate({ page: 1, searchType, keyword });
   };
 
   const copyPublicCode = async (publicCode: string) => {
     try {
       await navigator.clipboard.writeText(publicCode);
       setCopiedCode(publicCode);
+      setCopyErrorMessage(null);
     } catch {
-      setErrorMessage("고유코드를 복사하지 못했습니다. 직접 선택해 복사해 주세요.");
+      setCopiedCode(null);
+      setCopyErrorMessage("고유코드를 복사하지 못했습니다. 직접 선택해 복사해 주세요.");
     }
   };
 
@@ -112,25 +131,42 @@ export default function RoutineBoardClient({ initialRoutines, initialErrorMessag
     <div className="space-y-6">
       <CommunityContentToolbar
         sortOptions={sortOptions}
-        sortKey={sortKey}
-        onSortChange={(nextSortKey) => void changeSort(nextSortKey)}
+        sortKey={query.sort}
+        onSortChange={(sort) => navigate({ page: 1, sort })}
+        searchType={query.searchType}
+        keyword={query.keyword}
+        onSearch={searchRoutines}
         writeCategory="ROUTINE"
+        disabled={isPending}
       />
 
-      <section aria-busy={isLoading} aria-label="나의 루틴 목록">
-        {errorMessage && <p className="mb-3 text-sm text-red-700">{errorMessage}</p>}
+      <section aria-busy={isPending} aria-label="나의 루틴 목록">
+        {initialErrorMessage && <p className="mb-3 text-sm text-red-700">{initialErrorMessage}</p>}
+        {initialErrorMessage && (
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={retry}
+            className="mb-3 rounded border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:border-emerald-600 hover:text-emerald-700 disabled:opacity-50"
+          >
+            다시 시도
+          </button>
+        )}
+        {copyErrorMessage && <p className="mb-3 text-sm text-red-700">{copyErrorMessage}</p>}
+        {isPending && (
+          <p role="status" className="mb-3 text-sm font-medium text-emerald-700">
+            루틴 목록을 불러오는 중입니다.
+          </p>
+        )}
 
-        {isLoading ? (
-          <div className="rounded-xl border border-slate-200 bg-white px-5 py-10 text-center text-sm text-slate-500">
-            루틴을 불러오는 중입니다.
-          </div>
-        ) : routines.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-5 py-12 text-center text-sm text-slate-500">
-            아직 등록된 루틴이 없습니다.
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {routines.map((routine) => {
+        <div className={isPending ? "pointer-events-none opacity-50" : undefined}>
+          {routines.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-5 py-12 text-center text-sm text-slate-500">
+              {query.keyword ? "검색 조건에 맞는 루틴이 없습니다." : "아직 등록된 루틴이 없습니다."}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {routines.map((routine) => {
               const summary = toPlainTextPreview(routine.summary) || toPlainTextPreview(routine.content);
               const count = exerciseCount(routine);
 
@@ -196,10 +232,24 @@ export default function RoutineBoardClient({ initialRoutines, initialErrorMessag
                   </Link>
                 </article>
               );
-            })}
-          </div>
-        )}
+              })}
+            </div>
+          )}
+        </div>
       </section>
+
+      {!initialErrorMessage && initialResponse.total > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-5">
+          <p className="text-sm text-slate-500">총 {initialResponse.total.toLocaleString("ko-KR")}건</p>
+          <Pagination
+            currentPage={query.page}
+            totalPages={initialResponse.totalPages}
+            disabled={isPending}
+            ariaLabel="나의 루틴 목록 페이지"
+            onPageChange={(page) => navigate({ page })}
+          />
+        </div>
+      )}
 
       <AdSlot slot="POST_LIST_INLINE" label="루틴 광고" />
     </div>

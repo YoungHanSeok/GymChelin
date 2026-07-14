@@ -1,32 +1,61 @@
 import api from "@/lib/api";
-import type { ApiRoutine } from "@/lib/routine-types";
+import {
+  type ApiRoutineListResponse,
+  ROUTINE_PAGE_SIZE,
+  type RoutineListQuery,
+  type RoutineSearchParams,
+  parseRoutineListQuery,
+} from "@/lib/routine-types";
 import RoutineBoardClient from "./RoutineBoardClient";
 
 export const dynamic = "force-dynamic";
 
-const loadRoutines = async (): Promise<{
-  routines: ApiRoutine[];
+const loadRoutines = async (query: RoutineListQuery): Promise<{
+  response: ApiRoutineListResponse;
   errorMessage: string | null;
 }> => {
   try {
-    const response = await api.get<ApiRoutine[]>("/routines", {
-      params: { sort: "latest" },
+    const response = await api.get<ApiRoutineListResponse>("/routines", {
+      params: {
+        page: query.page,
+        take: ROUTINE_PAGE_SIZE,
+        sort: query.sort,
+        searchType: query.searchType,
+        keyword: query.keyword || undefined,
+      },
     });
 
     return {
-      routines: response.data,
+      response: response.data,
       errorMessage: null,
     };
   } catch {
     return {
-      routines: [],
+      response: {
+        items: [],
+        total: 0,
+        page: query.page,
+        take: ROUTINE_PAGE_SIZE,
+        totalPages: 0,
+      },
       errorMessage: "루틴 목록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.",
     };
   }
 };
 
-export default async function RoutinesPage() {
-  const { routines, errorMessage } = await loadRoutines();
+export default async function RoutinesPage({
+  searchParams,
+}: {
+  searchParams: Promise<RoutineSearchParams>;
+}) {
+  const query = parseRoutineListQuery(await searchParams);
+  const { response, errorMessage } = await loadRoutines(query);
 
-  return <RoutineBoardClient initialRoutines={routines} initialErrorMessage={errorMessage} />;
+  return (
+    <RoutineBoardClient
+      initialResponse={response}
+      initialErrorMessage={errorMessage}
+      query={{ ...query, page: response.page }}
+    />
+  );
 }
