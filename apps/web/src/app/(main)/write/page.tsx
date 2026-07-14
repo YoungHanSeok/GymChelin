@@ -180,7 +180,6 @@ export default function WritePage() {
         content: contentWithTags,
       });
 
-      editorRef.current?.destroy();
       router.push(selectedCategory.redirectPath);
       router.refresh();
     } catch {
@@ -196,7 +195,6 @@ export default function WritePage() {
 
   const confirmCancelWrite = () => {
     setIsCancelDialogOpen(false);
-    editorRef.current?.destroy();
     router.push(selectedCategory.redirectPath);
   };
 
@@ -285,7 +283,7 @@ export default function WritePage() {
               disabled={isSubmitting || isLoading || !user}
               className="rounded bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-400"
             >
-              {isSubmitting ? "저장 중" : "저장하기"}
+              {isSubmitting ? "저장 중" : "저장"}
             </button>
           </div>
         </form>

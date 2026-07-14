@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { RoutineExerciseCatalogService } from './routine-exercise-catalog.service';
 import { RoutinesService } from './routines.service';
 
 type RoutineQuery = {
@@ -46,7 +47,10 @@ type RequestUser = {
 
 @Controller('api/routines')
 export class RoutinesController {
-  constructor(private readonly routinesService: RoutinesService) {}
+  constructor(
+    private readonly routinesService: RoutinesService,
+    private readonly exerciseCatalogService: RoutineExerciseCatalogService,
+  ) {}
 
   @Get()
   findAll(@Query() query: RoutineQuery) {
@@ -55,12 +59,12 @@ export class RoutinesController {
 
   @Get('exercise-catalog/filters')
   findExerciseCatalogFilters() {
-    return this.routinesService.findExerciseCatalogFilters();
+    return this.exerciseCatalogService.findPublicFilters();
   }
 
   @Get('exercise-catalog')
   findExerciseCatalog(@Query() query: ExerciseCatalogQuery) {
-    return this.routinesService.findExerciseCatalog(query);
+    return this.exerciseCatalogService.findPublic(query);
   }
 
   @Get('import/:publicCode')

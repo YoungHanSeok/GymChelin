@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { useAuthSession } from "@/lib/auth-session";
+import { isAdminRole, useAuthSession } from "@/lib/auth-session";
 
 type Theme = "light" | "dark";
 
@@ -159,6 +159,8 @@ export default function Header() {
     router.refresh();
   };
 
+  const userIsAdmin = isAdminRole(user?.role);
+
   const authControl = user ? (
     <div ref={accountMenuRef} className="relative hidden md:block">
       <button
@@ -199,6 +201,19 @@ export default function Header() {
           >
             계정관리
           </Link>
+          {userIsAdmin && (
+            <div role="group" aria-label="관리자 기능" className="mt-1 border-t border-slate-200 pt-1">
+              <p className="px-4 py-1.5 text-xs font-bold text-slate-500">관리자 기능</p>
+              <Link
+                href="/admin/routine-exercises"
+                role="menuitem"
+                onClick={() => setIsAccountOpen(false)}
+                className="block px-5 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-950"
+              >
+                루틴 운동추가
+              </Link>
+            </div>
+          )}
           <button
             type="button"
             role="menuitem"
@@ -304,6 +319,18 @@ export default function Header() {
                 >
                   계정관리
                 </Link>
+                {userIsAdmin && (
+                  <div className="mt-1 border-t border-slate-200 pt-2">
+                    <p className="px-2 pb-1 text-xs font-bold text-slate-500">관리자 기능</p>
+                    <Link
+                      href="/admin/routine-exercises"
+                      className="block rounded px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      루틴 운동추가
+                    </Link>
+                  </div>
+                )}
                 <button
                   type="button"
                   className="rounded border border-slate-300 px-2 py-2 text-center text-sm font-semibold text-slate-700"

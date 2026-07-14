@@ -170,7 +170,13 @@ export default function RoutineImportDialog({ isOpen, onClose, onImport }: Routi
                               <span className="font-semibold text-slate-900">{exercise.exerciseName}</span>
                               <span className="ml-2 text-xs text-slate-500">
                                 {exercise.bodyParts.join(", ")} · {exercise.equipment ?? "기구 없음"} · {exercise.sets.length}세트
+                                {exercise.durationMinutes ? ` · 총 ${exercise.durationMinutes}분` : ""}
                               </span>
+                              {exercise.exerciseReason && (
+                                <p className="mt-1 text-xs leading-5 text-slate-500">
+                                  운동 이유: {exercise.exerciseReason}
+                                </p>
+                              )}
                             </li>
                           ))}
                         </ul>

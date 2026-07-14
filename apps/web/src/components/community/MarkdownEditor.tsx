@@ -9,8 +9,9 @@ type EditorTheme = "light" | "dark";
 export type MarkdownEditorHandle = {
   getMarkdown: () => string;
   focus: () => void;
-  destroy: () => void;
 };
+
+const EDITOR_DESTROY_DELAY_MS = 300;
 
 type MarkdownEditorProps = {
   height?: string;
@@ -46,6 +47,7 @@ async function insertImage(blob: Blob | File, callback: (url: string, altText?: 
 const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
   ({ height = "420px", initialValue = "", placeholder }, ref) => {
     const containerRef = useRef<HTMLDivElement | null>(null);
+    const editorMountRef = useRef<HTMLDivElement | null>(null);
     const editorRef = useRef<ToastuiEditor | null>(null);
     const markdownRef = useRef(initialValue);
 
@@ -54,45 +56,53 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
       focus: () => {
         editorRef.current?.focus();
       },
-      destroy: () => {
-        destroyEditor();
-      },
     }));
 
     const destroyEditor = () => {
       const editor = editorRef.current;
+      const editorMount = editorMountRef.current;
+
+      editorRef.current = null;
+      editorMountRef.current = null;
+      editorMount?.remove();
 
       if (!editor) {
         return;
       }
 
-      editorRef.current = null;
-
-      try {
-        editor.destroy();
-      } catch {
-        return;
-      }
+      // Toast UI 툴바의 200ms 지연 리사이즈가 끝난 뒤 내부 DOM을 정리한다.
+      window.setTimeout(() => {
+        try {
+          editor.destroy();
+        } catch {
+          return;
+        }
+      }, EDITOR_DESTROY_DELAY_MS);
     };
 
     useEffect(() => {
       let isMounted = true;
       let activeTheme = getAppliedEditorTheme();
+      let setupVersion = 0;
 
       const setupEditor = async (theme: EditorTheme) => {
+        const currentSetupVersion = ++setupVersion;
         const [{ default: Editor }] = await Promise.all([
           import("@toast-ui/editor"),
           import("@toast-ui/editor/dist/i18n/ko-kr"),
         ]);
 
-        if (!isMounted || !containerRef.current) {
+        if (!isMounted || currentSetupVersion !== setupVersion || !containerRef.current) {
           return;
         }
 
         markdownRef.current = normalizeResizableImageMarkdown(markdownRef.current);
 
-        editorRef.current = new Editor({
-          el: containerRef.current,
+        const editorMount = document.createElement("div");
+        containerRef.current.append(editorMount);
+
+        const editor = new Editor({
+          el: editorMount,
           height,
           hooks: {
             addImageBlobHook: (blob, callback) => {
@@ -110,6 +120,21 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
           theme,
           usageStatistics: false,
         });
+
+        if (!isMounted || currentSetupVersion !== setupVersion) {
+          editorMount.remove();
+          window.setTimeout(() => {
+            try {
+              editor.destroy();
+            } catch {
+              return;
+            }
+          }, EDITOR_DESTROY_DELAY_MS);
+          return;
+        }
+
+        editorMountRef.current = editorMount;
+        editorRef.current = editor;
       };
 
       const rebuildEditor = async (nextTheme: EditorTheme) => {
@@ -136,6 +161,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
 
       return () => {
         isMounted = false;
+        setupVersion += 1;
         observer.disconnect();
         destroyEditor();
       };

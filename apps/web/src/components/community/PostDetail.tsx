@@ -758,7 +758,7 @@ export default function PostDetail({ category, backHref, backLabel }: PostDetail
                 disabled={isEditSubmitting}
                 className="rounded bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-400"
               >
-                {isEditSubmitting ? "저장 중" : "저장하기"}
+                {isEditSubmitting ? "저장 중" : "저장"}
               </button>
             </div>
           </form>

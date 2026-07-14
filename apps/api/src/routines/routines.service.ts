@@ -75,14 +75,15 @@ export type RoutineCommentView = {
 type NormalizedRoutineSet = {
   weightKg: number;
   repetitions: number | null;
-  durationMinutes: number | null;
 };
 
 type NormalizedRoutineExercise = {
-  exerciseWikiId: number | null;
+  exerciseCatalogId: number | null;
   exerciseName: string;
   bodyParts: string[];
   equipment: string | null;
+  durationMinutes: number | null;
+  exerciseReason: string | null;
   sets: NormalizedRoutineSet[];
 };
 
@@ -383,17 +384,17 @@ export class RoutinesService {
             sortOrder: true,
             exercises: {
               select: {
-                exerciseWikiId: true,
                 exerciseName: true,
                 bodyParts: true,
                 equipment: true,
+                durationMinutes: true,
+                exerciseReason: true,
                 sortOrder: true,
                 sets: {
                   select: {
                     sortOrder: true,
                     weightKg: true,
                     repetitions: true,
-                    durationMinutes: true,
                   },
                   orderBy: { sortOrder: 'asc' },
                 },
@@ -410,81 +411,15 @@ export class RoutinesService {
       throw new NotFoundException('해당 고유코드의 루틴을 찾을 수 없습니다.');
     }
 
-    return routine;
-  }
-
-  async findExerciseCatalog(query: {
-    q?: string;
-    bodyPart?: string;
-    equipment?: string;
-    take?: string;
-  }) {
-    const q = query.q?.trim();
-    const bodyPart = query.bodyPart?.trim();
-    const equipment = query.equipment?.trim();
-    const take = this.parseTake(query.take);
-    const where: Prisma.ExerciseWikiWhereInput = {
-      ...(q ? { name: { contains: q, mode: 'insensitive' } } : {}),
-      ...(bodyPart ? { targetMuscles: { has: bodyPart } } : {}),
-      ...(equipment
-        ? { equipment: { equals: equipment, mode: 'insensitive' } }
-        : {}),
-    };
-
-    const [items, total] = await this.prisma.$transaction([
-      this.prisma.exerciseWiki.findMany({
-        where,
-        select: {
-          id: true,
-          name: true,
-          targetMuscles: true,
-          equipment: true,
-        },
-        orderBy: { name: 'asc' },
-        take,
-      }),
-      this.prisma.exerciseWiki.count({ where }),
-    ]);
-
     return {
-      items: items.map((item) => ({
-        id: item.id,
-        name: item.name,
-        bodyParts: item.targetMuscles,
-        equipment: item.equipment,
+      ...routine,
+      days: routine.days.map((day) => ({
+        ...day,
+        exercises: day.exercises.map((exercise) => ({
+          ...exercise,
+          exerciseCatalogId: null,
+        })),
       })),
-      total,
-    };
-  }
-
-  async findExerciseCatalogFilters() {
-    const items = await this.prisma.exerciseWiki.findMany({
-      select: { targetMuscles: true, equipment: true },
-    });
-    const bodyParts = new Set<string>();
-    const equipments = new Set<string>();
-
-    items.forEach((item) => {
-      item.targetMuscles.forEach((bodyPart) => {
-        const value = bodyPart.trim();
-        if (value) {
-          bodyParts.add(value);
-        }
-      });
-
-      const equipment = item.equipment?.trim();
-      if (equipment) {
-        equipments.add(equipment);
-      }
-    });
-
-    return {
-      bodyParts: [...bodyParts].sort((first, second) =>
-        first.localeCompare(second, 'ko'),
-      ),
-      equipments: [...equipments].sort((first, second) =>
-        first.localeCompare(second, 'ko'),
-      ),
     };
   }
 
@@ -534,11 +469,13 @@ export class RoutinesService {
                       exerciseName: exercise.exerciseName,
                       bodyParts: exercise.bodyParts,
                       equipment: exercise.equipment,
+                      durationMinutes: exercise.durationMinutes,
+                      exerciseReason: exercise.exerciseReason,
                       sortOrder: exerciseIndex + 1,
-                      ...(exercise.exerciseWikiId
+                      ...(exercise.exerciseCatalogId
                         ? {
-                            exerciseWiki: {
-                              connect: { id: exercise.exerciseWikiId },
+                            exerciseCatalog: {
+                              connect: { id: exercise.exerciseCatalogId },
                             },
                           }
                         : {}),
@@ -547,7 +484,6 @@ export class RoutinesService {
                           sortOrder: setIndex + 1,
                           weightKg: routineSet.weightKg,
                           repetitions: routineSet.repetitions,
-                          durationMinutes: routineSet.durationMinutes,
                         })),
                       },
                     })),
@@ -774,51 +710,53 @@ export class RoutinesService {
       return { dayOfWeek, exercises };
     });
 
-    const exerciseWikiIds = [
+    const exerciseCatalogIds = [
       ...new Set(
         days.flatMap((day) =>
           day.exercises.flatMap((exercise) =>
-            exercise.exerciseWikiId ? [exercise.exerciseWikiId] : [],
+            exercise.exerciseCatalogId ? [exercise.exerciseCatalogId] : [],
           ),
         ),
       ),
     ];
-    const exerciseWikis = exerciseWikiIds.length
-      ? await this.prisma.exerciseWiki.findMany({
-          where: { id: { in: exerciseWikiIds } },
+    const exerciseCatalogItems = exerciseCatalogIds.length
+      ? await this.prisma.routineExerciseCatalog.findMany({
+          where: { id: { in: exerciseCatalogIds }, isActive: true },
           select: {
             id: true,
             name: true,
-            targetMuscles: true,
+            targetBodyPart: true,
             equipment: true,
           },
         })
       : [];
-    const exerciseWikiMap = new Map(
-      exerciseWikis.map((exerciseWiki) => [exerciseWiki.id, exerciseWiki]),
+    const exerciseCatalogMap = new Map(
+      exerciseCatalogItems.map((item) => [item.id, item]),
     );
 
-    if (exerciseWikiMap.size !== exerciseWikiIds.length) {
+    if (exerciseCatalogMap.size !== exerciseCatalogIds.length) {
       throw new BadRequestException('선택한 운동 정보를 찾을 수 없습니다.');
     }
 
     return days.map((day) => ({
       ...day,
       exercises: day.exercises.map((exercise) => {
-        if (!exercise.exerciseWikiId) {
+        if (!exercise.exerciseCatalogId) {
           return exercise;
         }
 
-        const exerciseWiki = exerciseWikiMap.get(exercise.exerciseWikiId);
-        if (!exerciseWiki) {
+        const exerciseCatalog = exerciseCatalogMap.get(
+          exercise.exerciseCatalogId,
+        );
+        if (!exerciseCatalog) {
           throw new BadRequestException('선택한 운동 정보를 찾을 수 없습니다.');
         }
 
         return {
           ...exercise,
-          exerciseName: exerciseWiki.name,
-          bodyParts: exerciseWiki.targetMuscles,
-          equipment: exerciseWiki.equipment,
+          exerciseName: exerciseCatalog.name,
+          bodyParts: [exerciseCatalog.targetBodyPart],
+          equipment: exerciseCatalog.equipment,
         };
       }),
     }));
@@ -826,8 +764,8 @@ export class RoutinesService {
 
   private normalizeExercise(value: unknown): NormalizedRoutineExercise {
     const exercise = this.toRecord(value, '운동 정보');
-    const exerciseWikiId = this.parseOptionalId(
-      exercise.exerciseWikiId,
+    const exerciseCatalogId = this.parseOptionalId(
+      exercise.exerciseCatalogId,
       '운동',
     );
     const exerciseName =
@@ -835,7 +773,7 @@ export class RoutinesService {
         ? exercise.exerciseName.trim()
         : '';
 
-    if (!exerciseWikiId && !exerciseName) {
+    if (!exerciseCatalogId && !exerciseName) {
       throw new BadRequestException('운동명을 입력해 주세요.');
     }
 
@@ -853,12 +791,36 @@ export class RoutinesService {
       );
     }
 
+    const durationMinutes = this.parseOptionalInteger(
+      exercise.durationMinutes,
+      '운동 시간',
+      1,
+    );
+    const sets = exercise.sets.map((routineSet) =>
+      this.normalizeSet(routineSet),
+    );
+
+    if (
+      durationMinutes === null &&
+      sets.some((routineSet) => routineSet.repetitions === null)
+    ) {
+      throw new BadRequestException(
+        '운동 시간을 입력하지 않은 경우 각 세트의 반복횟수를 입력해 주세요.',
+      );
+    }
+
     return {
-      exerciseWikiId,
+      exerciseCatalogId,
       exerciseName,
       bodyParts: this.normalizeStringArray(exercise.bodyParts, 10, 50, '부위'),
       equipment: this.normalizeOptionalString(exercise.equipment, 80, '기구'),
-      sets: exercise.sets.map((routineSet) => this.normalizeSet(routineSet)),
+      durationMinutes,
+      exerciseReason: this.normalizeOptionalString(
+        exercise.exerciseReason,
+        500,
+        '운동 이유',
+      ),
+      sets,
     };
   }
 
@@ -870,19 +832,8 @@ export class RoutinesService {
       '반복횟수',
       1,
     );
-    const durationMinutes = this.parseOptionalInteger(
-      routineSet.durationMinutes,
-      '운동 시간',
-      1,
-    );
 
-    if (repetitions === null && durationMinutes === null) {
-      throw new BadRequestException(
-        '각 세트에 반복횟수 또는 운동 시간을 입력해 주세요.',
-      );
-    }
-
-    return { weightKg, repetitions, durationMinutes };
+    return { weightKg, repetitions };
   }
 
   private normalizeTags(value: unknown) {

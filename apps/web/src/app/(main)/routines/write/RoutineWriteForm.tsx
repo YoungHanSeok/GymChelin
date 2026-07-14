@@ -20,25 +20,38 @@ import {
 
 const nullablePositiveInteger = z.number().int("정수로 입력해 주세요.").positive("1 이상 입력해 주세요.").nullable();
 
-const routineSetSchema = z
+const routineSetSchema = z.object({
+  clientId: z.string(),
+  weightKg: z.number().int("무게는 1kg 단위의 정수로 입력해 주세요.").min(0, "무게는 0kg 이상이어야 합니다."),
+  repetitions: nullablePositiveInteger,
+});
+
+const routineExerciseSchema = z
   .object({
     clientId: z.string(),
-    weightKg: z.number().int("무게는 1kg 단위의 정수로 입력해 주세요.").min(0, "무게는 0kg 이상이어야 합니다."),
-    repetitions: nullablePositiveInteger,
+    exerciseCatalogId: z.number().int().positive().nullable(),
+    exerciseName: z.string().trim().min(1),
+    bodyParts: z.array(z.string().trim().min(1)).min(1),
+    equipment: z.string().trim().nullable(),
     durationMinutes: nullablePositiveInteger,
+    exerciseReason: z.string().max(500, "운동 이유는 최대 500자까지 입력할 수 있습니다."),
+    sets: z.array(routineSetSchema).min(1, "운동마다 한 개 이상의 세트가 필요합니다."),
   })
-  .refine((set) => set.repetitions !== null || set.durationMinutes !== null, {
-    message: "반복횟수 또는 운동시간 중 한 가지 이상 입력해 주세요.",
-  });
+  .superRefine((exercise, context) => {
+    if (exercise.durationMinutes !== null) {
+      return;
+    }
 
-const routineExerciseSchema = z.object({
-  clientId: z.string(),
-  exerciseWikiId: z.number().int().positive().nullable(),
-  exerciseName: z.string().trim().min(1),
-  bodyParts: z.array(z.string().trim().min(1)).min(1),
-  equipment: z.string().trim().nullable(),
-  sets: z.array(routineSetSchema).min(1, "운동마다 한 개 이상의 세트가 필요합니다."),
-});
+    exercise.sets.forEach((set, setIndex) => {
+      if (set.repetitions === null) {
+        context.addIssue({
+          code: "custom",
+          message: "총 운동시간이 없으면 반복횟수를 입력해 주세요.",
+          path: ["sets", setIndex, "repetitions"],
+        });
+      }
+    });
+  });
 
 const routineDaySchema = z
   .object({
@@ -74,6 +87,8 @@ const routineWriteSchema = z.object({
 });
 
 type RoutineWriteValues = z.infer<typeof routineWriteSchema>;
+
+const routineWriteResolver = zodResolver(routineWriteSchema);
 
 const createDefaultDays = (): RoutineDayDraft[] =>
   routineDayOptions.map((day, index) => ({
@@ -137,7 +152,22 @@ export default function RoutineWriteForm() {
     setValue,
     formState: { errors, isSubmitting, submitCount },
   } = useForm<RoutineWriteValues>({
-    resolver: zodResolver(routineWriteSchema),
+    resolver: async (values, context, options) =>
+      routineWriteResolver(
+        {
+          ...values,
+          days: values.days.map((day) =>
+            day.selected
+              ? day
+              : {
+                  ...day,
+                  exercises: [],
+                },
+          ),
+        },
+        context,
+        options,
+      ),
     defaultValues: {
       title: "",
       tagInput: "",
@@ -193,27 +223,13 @@ export default function RoutineWriteForm() {
       return;
     }
 
-    if (!targetDay.selected) {
-      nextDays[dayIndex] = { ...targetDay, selected: true };
-      setDays(nextDays);
-    }
-
-    setActiveDayIndex(dayIndex);
-  };
-
-  const excludeActiveDay = () => {
-    const nextDays = [...getValues("days")];
-    nextDays[activeDayIndex] = {
-      ...nextDays[activeDayIndex],
-      selected: false,
-      exercises: [],
+    nextDays[dayIndex] = {
+      ...targetDay,
+      selected: dayIndex === activeDayIndex && targetDay.selected ? false : true,
     };
     setDays(nextDays, submitCount > 0);
 
-    const nextSelectedIndex = nextDays.findIndex((day) => day.selected);
-    if (nextSelectedIndex >= 0) {
-      setActiveDayIndex(nextSelectedIndex);
-    }
+    setActiveDayIndex(dayIndex);
   };
 
   const addExercise = (exercise: ExerciseCatalogItem | Omit<ExerciseCatalogItem, "id">) => {
@@ -226,16 +242,17 @@ export default function RoutineWriteForm() {
 
     const nextExercise = {
       clientId: createClientId("exercise"),
-      exerciseWikiId: "id" in exercise ? exercise.id : null,
+      exerciseCatalogId: "id" in exercise ? exercise.id : null,
       exerciseName: exercise.name,
       bodyParts: [...exercise.bodyParts],
       equipment: exercise.equipment,
+      durationMinutes: null,
+      exerciseReason: "",
       sets: [
         {
           clientId: createClientId("set"),
           weightKg: 0,
           repetitions: null,
-          durationMinutes: null,
         },
       ],
     };
@@ -272,7 +289,6 @@ export default function RoutineWriteForm() {
           clientId: createClientId("set"),
           weightKg: 0,
           repetitions: null,
-          durationMinutes: null,
         },
       ],
     };
@@ -308,15 +324,16 @@ export default function RoutineWriteForm() {
         exercises:
           importedDay?.exercises.map((exercise) => ({
             clientId: createClientId("exercise"),
-            exerciseWikiId: exercise.exerciseWikiId,
+            exerciseCatalogId: exercise.exerciseCatalogId,
             exerciseName: exercise.exerciseName,
             bodyParts: [...exercise.bodyParts],
             equipment: exercise.equipment,
+            durationMinutes: exercise.durationMinutes,
+            exerciseReason: exercise.exerciseReason ?? "",
             sets: exercise.sets.map((set) => ({
               clientId: createClientId("set"),
               weightKg: set.weightKg,
               repetitions: set.repetitions,
-              durationMinutes: set.durationMinutes,
             })),
           })) ?? [],
       };
@@ -345,20 +362,20 @@ export default function RoutineWriteForm() {
           .map((day) => ({
             dayOfWeek: day.dayOfWeek,
             exercises: day.exercises.map((exercise) => ({
-              exerciseWikiId: exercise.exerciseWikiId ?? undefined,
+              exerciseCatalogId: exercise.exerciseCatalogId ?? undefined,
               exerciseName: exercise.exerciseName,
               bodyParts: exercise.bodyParts,
               equipment: exercise.equipment ?? undefined,
+              durationMinutes: exercise.durationMinutes ?? undefined,
+              exerciseReason: exercise.exerciseReason.trim() || undefined,
               sets: exercise.sets.map((set) => ({
                 weightKg: set.weightKg,
                 repetitions: set.repetitions ?? undefined,
-                durationMinutes: set.durationMinutes ?? undefined,
               })),
             })),
           })),
       });
 
-      editorRef.current?.destroy();
       router.push(`/routines/${response.data.id}`);
       router.refresh();
     } catch {
@@ -426,6 +443,7 @@ export default function RoutineWriteForm() {
             <div>
               <h2 className="text-lg font-bold text-slate-950">요일별 루틴</h2>
               <p className="mt-1 text-sm text-slate-500">운동 요일을 선택하고 각 요일에 운동과 세트를 등록해 주세요.</p>
+              <p className="mt-1 text-xs font-semibold text-red-600">체크 표시된 요일만 저장됩니다.</p>
             </div>
             <button
               type="button"
@@ -451,16 +469,21 @@ export default function RoutineWriteForm() {
                     aria-selected={isActive}
                     onClick={() => selectDayTab(dayIndex)}
                     className={`relative rounded-t px-2 py-3 text-sm font-bold transition ${
-                      isActive
-                        ? "border border-b-white border-slate-300 bg-white text-emerald-700"
-                        : isSelected
-                          ? "bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+                      isSelected
+                        ? isActive
+                          ? "border border-emerald-300 border-b-emerald-100 bg-emerald-100 text-emerald-900 hover:bg-emerald-100"
+                          : "bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+                        : isActive
+                          ? "border border-b-white border-slate-300 bg-white text-slate-700"
                           : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
                     }`}
                   >
                     {option.label}
                     {isSelected && (
-                      <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-emerald-500" aria-label="선택됨" />
+                      <>
+                        <span className="absolute right-1 top-0.5 text-xs font-black text-red-600" aria-hidden="true">✓</span>
+                        <span className="sr-only">선택됨</span>
+                      </>
                     )}
                   </button>
                 );
@@ -473,19 +496,12 @@ export default function RoutineWriteForm() {
               <div>
                 <h3 className="font-bold text-slate-950">{activeDayOption.label}요일 운동</h3>
                 <p className="mt-1 text-xs text-slate-500">
-                  {activeDay?.selected ? `${activeDay.exercises.length}개 운동이 등록되었습니다.` : "이 요일은 선택되지 않았습니다."}
+                  {activeDay?.selected
+                    ? `${activeDay.exercises.length}개 운동이 등록되었습니다.`
+                    : "이 요일은 저장에서 제외됩니다. 요일 탭을 다시 누르면 선택됩니다."}
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                {activeDay?.selected && (
-                  <button
-                    type="button"
-                    onClick={excludeActiveDay}
-                    className="rounded border border-red-200 px-3 py-2 text-xs font-semibold text-red-700 hover:border-red-400"
-                  >
-                    이 요일 제외
-                  </button>
-                )}
                 <button
                   type="button"
                   onClick={() => {
@@ -513,7 +529,7 @@ export default function RoutineWriteForm() {
                 onClick={() => selectDayTab(activeDayIndex)}
                 className="w-full rounded border border-dashed border-slate-300 px-4 py-10 text-sm font-semibold text-slate-500 hover:border-emerald-500 hover:text-emerald-700"
               >
-                {activeDayOption.label}요일을 운동일로 선택
+                이 요일은 저장되지 않습니다. {activeDayOption.label}요일을 운동일로 다시 선택
               </button>
             ) : activeDay.exercises.length === 0 ? (
               <button
@@ -542,27 +558,79 @@ export default function RoutineWriteForm() {
                         onClick={() => removeExercise(exerciseIndex)}
                         className="shrink-0 text-xs font-semibold text-red-700 hover:text-red-900"
                       >
-                        운동 삭제
+                        삭제
                       </button>
                     </header>
 
                     <div className="px-3 py-4 sm:px-4">
-                      <div className="hidden grid-cols-[52px_minmax(90px,1fr)_minmax(90px,1fr)_minmax(110px,1fr)_64px] gap-2 px-2 pb-2 text-xs font-semibold text-slate-500 sm:grid">
+                      <div className="mb-5 grid gap-4 rounded bg-slate-50 p-4 sm:grid-cols-[minmax(140px,220px)_minmax(0,1fr)]">
+                        <div>
+                          <label
+                            htmlFor={`exercise-duration-${exercise.clientId}`}
+                            className="mb-1.5 block text-xs font-semibold text-slate-700"
+                          >
+                            총 운동시간(분) <span className="font-normal text-slate-400">(선택)</span>
+                          </label>
+                          <input
+                            id={`exercise-duration-${exercise.clientId}`}
+                            type="number"
+                            min={1}
+                            step={1}
+                            inputMode="numeric"
+                            {...register(`days.${activeDayIndex}.exercises.${exerciseIndex}.durationMinutes`, {
+                              setValueAs: (value) => (value === "" ? null : Number(value)),
+                            })}
+                            className="input-style"
+                            placeholder="예: 30"
+                            aria-label={`${exercise.exerciseName} 총 운동시간(분)`}
+                          />
+                          {errors.days?.[activeDayIndex]?.exercises?.[exerciseIndex]?.durationMinutes?.message && (
+                            <p className="mt-1.5 text-xs text-red-700">
+                              {errors.days[activeDayIndex]?.exercises?.[exerciseIndex]?.durationMinutes?.message}
+                            </p>
+                          )}
+                        </div>
+                        <div>
+                          <label
+                            htmlFor={`exercise-reason-${exercise.clientId}`}
+                            className="mb-1.5 block text-xs font-semibold text-slate-700"
+                          >
+                            이 운동을 하는 이유 <span className="font-normal text-slate-400">(선택)</span>
+                          </label>
+                          <textarea
+                            id={`exercise-reason-${exercise.clientId}`}
+                            {...register(`days.${activeDayIndex}.exercises.${exerciseIndex}.exerciseReason`)}
+                            className="input-style min-h-20 resize-y"
+                            placeholder="이 운동을 루틴에 포함한 이유나 목표를 적어 주세요."
+                            maxLength={500}
+                          />
+                          {errors.days?.[activeDayIndex]?.exercises?.[exerciseIndex]?.exerciseReason?.message && (
+                            <p className="mt-1.5 text-xs text-red-700">
+                              {errors.days[activeDayIndex]?.exercises?.[exerciseIndex]?.exerciseReason?.message}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <p className="mb-3 text-xs text-slate-500">
+                        총 운동시간을 입력하지 않으면 각 세트의 반복횟수를 입력해야 합니다.
+                      </p>
+
+                      <div className="hidden grid-cols-[52px_minmax(90px,1fr)_minmax(90px,1fr)_64px] gap-2 px-2 pb-2 text-xs font-semibold text-slate-500 sm:grid">
                         <span>세트</span>
                         <span>무게(kg)</span>
                         <span>반복횟수</span>
-                        <span>운동시간(분)</span>
                         <span className="sr-only">삭제</span>
                       </div>
 
                       <div className="space-y-2">
                         {exercise.sets.map((set, setIndex) => {
                           const setError = errors.days?.[activeDayIndex]?.exercises?.[exerciseIndex]?.sets?.[setIndex];
-                          const needsRepetitionOrTime = submitCount > 0 && set.repetitions === null && set.durationMinutes === null;
+                          const needsRepetitions = submitCount > 0 && exercise.durationMinutes === null && set.repetitions === null;
 
                           return (
                             <div key={set.clientId} className="rounded border border-slate-200 p-3 sm:border-0 sm:p-0">
-                              <div className="grid gap-3 sm:grid-cols-[52px_minmax(90px,1fr)_minmax(90px,1fr)_minmax(110px,1fr)_64px] sm:items-start sm:gap-2">
+                              <div className="grid gap-3 sm:grid-cols-[52px_minmax(90px,1fr)_minmax(90px,1fr)_64px] sm:items-start sm:gap-2">
                                 <div className="flex h-10 items-center text-sm font-bold text-slate-700">{setIndex + 1}세트</div>
                                 <label className="text-xs font-semibold text-slate-600 sm:text-[0px]">
                                   무게(kg)
@@ -593,21 +661,6 @@ export default function RoutineWriteForm() {
                                     aria-label={`${exercise.exerciseName} ${setIndex + 1}세트 반복횟수`}
                                   />
                                 </label>
-                                <label className="text-xs font-semibold text-slate-600 sm:text-[0px]">
-                                  운동시간(분)
-                                  <input
-                                    type="number"
-                                    min={1}
-                                    step={1}
-                                    inputMode="numeric"
-                                    {...register(`days.${activeDayIndex}.exercises.${exerciseIndex}.sets.${setIndex}.durationMinutes`, {
-                                      setValueAs: (value) => (value === "" ? null : Number(value)),
-                                    })}
-                                    className="input-style mt-1 sm:mt-0 sm:text-sm"
-                                    placeholder="선택"
-                                    aria-label={`${exercise.exerciseName} ${setIndex + 1}세트 운동시간(분)`}
-                                  />
-                                </label>
                                 <button
                                   type="button"
                                   onClick={() => removeSet(exerciseIndex, setIndex)}
@@ -617,12 +670,11 @@ export default function RoutineWriteForm() {
                                   삭제
                                 </button>
                               </div>
-                              {(setError?.weightKg?.message || setError?.repetitions?.message || setError?.durationMinutes?.message || needsRepetitionOrTime) && (
+                              {(setError?.weightKg?.message || setError?.repetitions?.message || needsRepetitions) && (
                                 <p className="mt-1.5 text-xs text-red-700">
                                   {setError?.weightKg?.message ??
                                     setError?.repetitions?.message ??
-                                    setError?.durationMinutes?.message ??
-                                    "반복횟수 또는 운동시간을 한 가지 이상 입력해 주세요."}
+                                    "총 운동시간이 없으면 반복횟수를 입력해 주세요."}
                                 </p>
                               )}
                             </div>
@@ -665,7 +717,7 @@ export default function RoutineWriteForm() {
             disabled={isSubmitting}
             className="rounded bg-slate-950 px-6 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-400"
           >
-            {isSubmitting ? "저장 중" : "루틴 게시하기"}
+            {isSubmitting ? "저장 중" : "저장"}
           </button>
         </div>
       </form>
@@ -685,7 +737,6 @@ export default function RoutineWriteForm() {
         <CancelWriteDialog
           onClose={() => setIsCancelDialogOpen(false)}
           onConfirm={() => {
-            editorRef.current?.destroy();
             router.push("/routines");
           }}
         />

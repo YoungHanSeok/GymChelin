@@ -31,15 +31,16 @@ export type ApiRoutineSet = {
   sortOrder: number;
   weightKg: number | string;
   repetitions: number | null;
-  durationMinutes: number | null;
 };
 
 export type ApiRoutineExercise = {
   id: number;
-  exerciseWikiId: number | null;
+  exerciseCatalogId: number | null;
   exerciseName: string;
   bodyParts: string[];
   equipment: string | null;
+  durationMinutes: number | null;
+  exerciseReason: string | null;
   sortOrder: number;
   sets: ApiRoutineSet[];
 };

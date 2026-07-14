@@ -14,15 +14,16 @@ export type RoutineSetDraft = {
   clientId: string;
   weightKg: number;
   repetitions: number | null;
-  durationMinutes: number | null;
 };
 
 export type RoutineExerciseDraft = {
   clientId: string;
-  exerciseWikiId: number | null;
+  exerciseCatalogId: number | null;
   exerciseName: string;
   bodyParts: string[];
   equipment: string | null;
+  durationMinutes: number | null;
+  exerciseReason: string;
   sets: RoutineSetDraft[];
 };
 
@@ -50,14 +51,15 @@ export type ExerciseCatalogFilters = {
 };
 
 export type RoutineImportExercise = {
-  exerciseWikiId: number | null;
+  exerciseCatalogId: number | null;
   exerciseName: string;
   bodyParts: string[];
   equipment: string | null;
+  durationMinutes: number | null;
+  exerciseReason: string | null;
   sets: Array<{
     weightKg: number;
     repetitions: number | null;
-    durationMinutes: number | null;
   }>;
 };
 

@@ -19,7 +19,20 @@ type ApiErrorMessage = {
   status?: number;
 };
 
+const FIND_PASSWORD_REQUEST_TIMEOUT_MS = 30_000;
+
 const getApiErrorMessage = (error: unknown): ApiErrorMessage => {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error.code === "ECONNABORTED" || error.code === "ETIMEDOUT")
+  ) {
+    return {
+      message: "요청 처리에 시간이 걸리고 있습니다. 이메일 수신 여부를 확인해 주세요.",
+    };
+  }
+
   if (
     typeof error === "object" &&
     error !== null &&
@@ -71,7 +84,9 @@ export default function FindPasswordComponent({ onClose }: { onClose: () => void
     setAlertMessage(null);
 
     try {
-      const response = await api.post<ApiMessageResponse>("/auth/find-password", data);
+      const response = await api.post<ApiMessageResponse>("/auth/find-password", data, {
+        timeout: FIND_PASSWORD_REQUEST_TIMEOUT_MS,
+      });
       setMessage(response.data.message ?? "이메일로 임시 비밀번호 안내를 요청했습니다.");
       reset();
     } catch (error: unknown) {

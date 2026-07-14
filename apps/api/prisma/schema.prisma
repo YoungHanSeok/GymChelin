@@ -247,21 +247,23 @@ model RoutineDay {
 }
 
 model RoutineExercise {
-  id             Int           @id @default(autoincrement())
-  routineDayId   Int           @map("routine_day_id")
-  exerciseWikiId Int?          @map("exercise_wiki_id")
-  exerciseName   String        @map("exercise_name") @db.VarChar(80)
-  bodyParts      String[]      @map("body_parts")
-  equipment      String?       @db.VarChar(80)
-  sortOrder      Int           @map("sort_order")
-  createdAt      DateTime      @default(now()) @map("created_at")
-  updatedAt      DateTime      @updatedAt @map("updated_at")
-  routineDay     RoutineDay    @relation(fields: [routineDayId], references: [id], onDelete: Cascade)
-  exerciseWiki   ExerciseWiki? @relation(fields: [exerciseWikiId], references: [id], onDelete: SetNull)
-  sets           RoutineSet[]
+  id                Int                     @id @default(autoincrement())
+  routineDayId      Int                     @map("routine_day_id")
+  exerciseCatalogId Int?                    @map("exercise_catalog_id")
+  exerciseName      String                  @map("exercise_name") @db.VarChar(80)
+  bodyParts         String[]                @map("body_parts")
+  equipment         String?                 @db.VarChar(80)
+  durationMinutes   Int?                    @map("duration_minutes")
+  exerciseReason    String?                 @map("exercise_reason") @db.VarChar(500)
+  sortOrder         Int                     @map("sort_order")
+  createdAt         DateTime                @default(now()) @map("created_at")
+  updatedAt         DateTime                @updatedAt @map("updated_at")
+  routineDay        RoutineDay              @relation(fields: [routineDayId], references: [id], onDelete: Cascade)
+  exerciseCatalog   RoutineExerciseCatalog? @relation(fields: [exerciseCatalogId], references: [id], onDelete: SetNull)
+  sets              RoutineSet[]
 
   @@index([routineDayId, sortOrder])
-  @@index([exerciseWikiId])
+  @@index([exerciseCatalogId])
   @@map("routine_exercises")
 }
 
@@ -271,7 +273,6 @@ model RoutineSet {
   sortOrder         Int             @map("sort_order")
   weightKg          Int             @map("weight_kg")
   repetitions       Int?
-  durationMinutes   Int?            @map("duration_minutes")
   createdAt         DateTime        @default(now()) @map("created_at")
   updatedAt         DateTime        @updatedAt @map("updated_at")
   routineExercise   RoutineExercise @relation(fields: [routineExerciseId], references: [id], onDelete: Cascade)
@@ -312,22 +313,36 @@ model RoutineLike {
 }
 
 model ExerciseWiki {
+  id            Int      @id @default(autoincrement())
+  slug          String   @unique
+  name          String   @db.VarChar(80)
+  targetMuscles String[] @map("target_muscles")
+  equipment     String?
+  difficulty    String   @db.VarChar(30)
+  description   String
+  howTo         String[] @map("how_to")
+  effects       String[]
+  cautions      String[]
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@index([name])
+  @@map("exercise_wikis")
+}
+
+model RoutineExerciseCatalog {
   id               Int               @id @default(autoincrement())
-  slug             String            @unique
   name             String            @db.VarChar(80)
-  targetMuscles    String[]          @map("target_muscles")
-  equipment        String?
-  difficulty       String            @db.VarChar(30)
-  description      String
-  howTo            String[]          @map("how_to")
-  effects          String[]
-  cautions         String[]
+  targetBodyPart   String            @map("target_body_part") @db.VarChar(50)
+  equipment        String            @db.VarChar(80)
+  isActive         Boolean           @default(true) @map("is_active")
   createdAt        DateTime          @default(now()) @map("created_at")
   updatedAt        DateTime          @updatedAt @map("updated_at")
   routineExercises RoutineExercise[]
 
-  @@index([name])
-  @@map("exercise_wikis")
+  @@unique([name, targetBodyPart, equipment])
+  @@index([isActive, name])
+  @@map("routine_exercise_catalogs")
 }
 
 model GymPlace {

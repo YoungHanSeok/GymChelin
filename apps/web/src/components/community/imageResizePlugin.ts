@@ -521,9 +521,9 @@ function createResizableImageNodeView(
     return editorWidth > 0 ? Math.min(editorWidth, MAX_IMAGE_WIDTH) : MAX_IMAGE_WIDTH;
   };
 
-  const finishResize = () => {
+  const releaseResize = () => {
     if (activePointerId === null) {
-      return;
+      return false;
     }
 
     if (resizeHandle.hasPointerCapture(activePointerId)) {
@@ -531,6 +531,14 @@ function createResizableImageNodeView(
     }
 
     activePointerId = null;
+
+    return true;
+  };
+
+  const finishResize = () => {
+    if (!releaseResize()) {
+      return;
+    }
 
     const position = getPos();
 
@@ -608,7 +616,7 @@ function createResizableImageNodeView(
     stopEvent: (event: Event) => event.target === resizeHandle,
     ignoreMutation: () => true,
     destroy: () => {
-      finishResize();
+      releaseResize();
       resizeHandle.removeEventListener("pointerdown", handlePointerDown);
       resizeHandle.removeEventListener("pointermove", handlePointerMove);
       resizeHandle.removeEventListener("pointerup", handlePointerEnd);

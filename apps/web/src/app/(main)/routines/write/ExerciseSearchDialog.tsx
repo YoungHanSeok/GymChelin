@@ -282,7 +282,9 @@ export default function ExerciseSearchDialog({
             >
               <span>
                 <span className="block text-sm font-semibold text-slate-900">원하는 운동이 없나요?</span>
-                <span className="mt-1 block text-xs text-slate-500">운동명, 부위, 기구를 직접 입력할 수 있습니다.</span>
+                <span className="mt-1 block text-xs text-slate-500">
+                  운동명, 부위, 기구를 직접 입력할 수 있으며 현재 루틴에만 추가됩니다.
+                </span>
               </span>
               <span className="text-sm font-semibold text-emerald-700">{isCustomOpen ? "닫기" : "직접 입력"}</span>
             </button>
