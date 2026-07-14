@@ -24,6 +24,10 @@ export class ReportsService {
       throw new BadRequestException('신고 사유를 입력해 주세요.');
     }
 
+    if (!Number.isSafeInteger(targetId) || targetId < 1) {
+      throw new BadRequestException('올바른 신고 대상 ID를 입력해 주세요.');
+    }
+
     await this.ensureReportableTarget({
       targetType,
       targetId,
@@ -130,6 +134,19 @@ export class ReportsService {
       });
     }
 
+    if (targetType === ReportTargetType.ROUTINE_COMMENT) {
+      await this.ensureExists(
+        this.prisma.routineComment.findUnique({
+          where: { id: targetId },
+          select: { id: true },
+        }),
+      );
+      return this.prisma.routineComment.update({
+        where: { id: targetId },
+        data: { status },
+      });
+    }
+
     await this.ensureExists(
       this.prisma.gymReview.findUnique({
         where: { id: targetId },
@@ -154,6 +171,40 @@ export class ReportsService {
     targetId: number;
     reporterId: number;
   }) {
+    if (input.targetType === ReportTargetType.ROUTINE) {
+      const routine = await this.prisma.routine.findUnique({
+        where: { id: input.targetId },
+        select: { authorId: true },
+      });
+
+      if (!routine) {
+        throw new NotFoundException('대상을 찾을 수 없습니다.');
+      }
+
+      if (routine.authorId === input.reporterId) {
+        throw new BadRequestException('본인의 루틴은 신고할 수 없습니다.');
+      }
+
+      return;
+    }
+
+    if (input.targetType === ReportTargetType.ROUTINE_COMMENT) {
+      const comment = await this.prisma.routineComment.findUnique({
+        where: { id: input.targetId },
+        select: { authorId: true },
+      });
+
+      if (!comment) {
+        throw new NotFoundException('대상을 찾을 수 없습니다.');
+      }
+
+      if (comment.authorId === input.reporterId) {
+        throw new BadRequestException('본인의 댓글은 신고할 수 없습니다.');
+      }
+
+      return;
+    }
+
     if (input.targetType !== ReportTargetType.COMMENT) {
       return;
     }

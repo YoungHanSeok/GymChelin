@@ -84,11 +84,14 @@ export function HomeRoutineCard({ routine }: { routine: RoutinePreview }) {
   return (
     <article className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md">
       <Link
-        href="/routines"
+        href={`/routines/${routine.id}`}
+        prefetch={false}
         className="group block p-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500 sm:p-5"
       >
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
           <span className="font-semibold text-emerald-700">나의 루틴</span>
+          <span aria-hidden="true">·</span>
+          <span className="font-mono font-semibold text-slate-700">{routine.publicCode}</span>
           <span aria-hidden="true">·</span>
           <span>{routine.author}</span>
           <span aria-hidden="true">·</span>
@@ -98,9 +101,23 @@ export function HomeRoutineCard({ routine }: { routine: RoutinePreview }) {
           {routine.title}
         </h2>
         {routine.summary && <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600">{routine.summary}</p>}
-        <div className="mt-4 inline-flex items-center gap-1 text-xs text-slate-500" title="좋아요">
-          <ThumbIcon />
-          <span>{routine.likeCount}</span>
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+          {routine.dayLabels.length > 0 && <span>{routine.dayLabels.join("·")}요일</span>}
+          <span>운동 {routine.exerciseCount}개</span>
+        </div>
+        <div className="mt-4 flex items-center gap-4 text-xs text-slate-500">
+          <span className="inline-flex items-center gap-1" title="좋아요">
+            <ThumbIcon />
+            <span>{routine.likeCount}</span>
+          </span>
+          <span className="inline-flex items-center gap-1" title="댓글">
+            <CommentIcon />
+            <span>{routine.commentCount}</span>
+          </span>
+          <span className="inline-flex items-center gap-1" title="조회">
+            <EyeIcon />
+            <span>{routine.viewCount}</span>
+          </span>
         </div>
       </Link>
     </article>

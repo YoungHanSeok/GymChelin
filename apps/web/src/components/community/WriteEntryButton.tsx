@@ -21,7 +21,7 @@ export default function WriteEntryButton({
   const { user, isLoading } = useAuthSession();
   const [notice, setNotice] = useState(false);
   const timerRef = useRef<number | null>(null);
-  const writePath = `/write?category=${category}`;
+  const writePath = category === "ROUTINE" ? "/routines/write" : `/write?category=${category}`;
 
   useEffect(() => {
     return () => {

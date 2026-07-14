@@ -9,7 +9,9 @@ declare module "@toast-ui/editor" {
     };
     initialEditType?: "markdown" | "wysiwyg";
     initialValue?: string;
+    language?: string;
     placeholder?: string;
+    plugins?: unknown[];
     previewStyle?: "tab" | "vertical";
     theme?: EditorTheme;
     usageStatistics?: boolean;
@@ -18,6 +20,7 @@ declare module "@toast-ui/editor" {
   export type ViewerOptions = {
     el: HTMLElement;
     initialValue?: string;
+    plugins?: unknown[];
     theme?: EditorTheme;
     usageStatistics?: boolean;
   };
@@ -44,6 +47,8 @@ declare module "@toast-ui/editor" {
     destroy(): void;
   }
 }
+
+declare module "@toast-ui/editor/dist/i18n/ko-kr";
 
 declare module "@toast-ui/editor/viewer" {
   import type { ViewerOptions } from "@toast-ui/editor";

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import type ToastuiViewer from "@toast-ui/editor/viewer";
+import { imageResizePlugin } from "@/components/community/imageResizePlugin";
 
 type ViewerTheme = "light" | "dark";
 
@@ -57,6 +58,7 @@ export default function MarkdownViewer({ content }: MarkdownViewerProps) {
       viewerRef.current = new Viewer({
         el: containerRef.current,
         initialValue: contentRef.current,
+        plugins: [imageResizePlugin],
         theme,
         usageStatistics: false,
       });

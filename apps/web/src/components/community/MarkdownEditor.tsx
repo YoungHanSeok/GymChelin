@@ -2,6 +2,7 @@
 
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import type ToastuiEditor from "@toast-ui/editor";
+import { imageResizePlugin, normalizeResizableImageMarkdown } from "@/components/community/imageResizePlugin";
 
 type EditorTheme = "light" | "dark";
 
@@ -35,72 +36,11 @@ function readBlobAsDataUrl(blob: Blob) {
   });
 }
 
-function getImageNaturalWidth(src: string) {
-  return new Promise<number | null>((resolve) => {
-    const image = new Image();
-
-    image.onload = () => resolve(image.naturalWidth || null);
-    image.onerror = () => resolve(null);
-    image.src = src;
-  });
-}
-
-function escapeRegExp(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function escapeHtmlAttribute(value: string) {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/"/g, "&quot;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
-
-function getSizedImageMarkdown(src: string, altText: string, width: number) {
-  return `<img src="${escapeHtmlAttribute(src)}" alt="${escapeHtmlAttribute(altText)}" width="${width}" />`;
-}
-
-function promptImageWidth(naturalWidth: number | null) {
-  const fallbackWidth = 720;
-  const defaultWidth = Math.min(naturalWidth ?? fallbackWidth, fallbackWidth);
-  const value = window.prompt("이미지 너비(px)를 입력해 주세요. 비우면 기본 크기로 삽입됩니다.", String(defaultWidth));
-
-  if (value === null) {
-    return null;
-  }
-
-  const width = Number(value.trim() || defaultWidth);
-
-  if (!Number.isFinite(width)) {
-    return defaultWidth;
-  }
-
-  return Math.min(Math.max(Math.round(width), 80), 1600);
-}
-
-async function insertImageWithSize(editor: ToastuiEditor, blob: Blob | File, callback: (url: string, altText?: string) => void) {
+async function insertImage(blob: Blob | File, callback: (url: string, altText?: string) => void) {
   const dataUrl = await readBlobAsDataUrl(blob);
-  const naturalWidth = await getImageNaturalWidth(dataUrl);
-  const width = promptImageWidth(naturalWidth);
   const altText = blob instanceof File && blob.name ? blob.name : "업로드 이미지";
 
   callback(dataUrl, altText);
-
-  if (!width) {
-    return;
-  }
-
-  window.setTimeout(() => {
-    const markdown = editor.getMarkdown();
-    const markdownImagePattern = new RegExp(`!\\[[^\\]]*\\]\\(${escapeRegExp(dataUrl)}\\)`);
-    const sizedImageMarkdown = getSizedImageMarkdown(dataUrl, altText, width);
-    const nextMarkdown = markdown.replace(markdownImagePattern, sizedImageMarkdown);
-
-    if (nextMarkdown !== markdown) {
-      editor.setMarkdown(nextMarkdown, false);
-    }
-  });
 }
 
 const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
@@ -140,27 +80,32 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
       let activeTheme = getAppliedEditorTheme();
 
       const setupEditor = async (theme: EditorTheme) => {
-        const { default: Editor } = await import("@toast-ui/editor");
+        const [{ default: Editor }] = await Promise.all([
+          import("@toast-ui/editor"),
+          import("@toast-ui/editor/dist/i18n/ko-kr"),
+        ]);
 
         if (!isMounted || !containerRef.current) {
           return;
         }
+
+        markdownRef.current = normalizeResizableImageMarkdown(markdownRef.current);
 
         editorRef.current = new Editor({
           el: containerRef.current,
           height,
           hooks: {
             addImageBlobHook: (blob, callback) => {
-              if (editorRef.current) {
-                void insertImageWithSize(editorRef.current, blob, callback);
-              }
+              void insertImage(blob, callback);
 
               return false;
             },
           },
           initialEditType: "wysiwyg",
           initialValue: markdownRef.current,
+          language: "ko-KR",
           placeholder,
+          plugins: [imageResizePlugin],
           previewStyle: "vertical",
           theme,
           usageStatistics: false,

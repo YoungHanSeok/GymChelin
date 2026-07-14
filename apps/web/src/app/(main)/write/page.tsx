@@ -6,16 +6,15 @@ import MarkdownEditor, { type MarkdownEditorHandle } from "@/components/communit
 import api from "@/lib/api";
 import { useAuthSession } from "@/lib/auth-session";
 
-type WriteCategory = "WORKOUT_LOG" | "FREE" | "ROUTINE";
+type WriteCategory = "WORKOUT_LOG" | "FREE";
 
 const categoryOptions: { value: WriteCategory; label: string; redirectPath: string }[] = [
   { value: "WORKOUT_LOG", label: "운동일지", redirectPath: "/boards/workout-log" },
   { value: "FREE", label: "자유게시판", redirectPath: "/boards/free" },
-  { value: "ROUTINE", label: "나의 루틴", redirectPath: "/routines" },
 ];
 
 const isWriteCategory = (value: string | null): value is WriteCategory =>
-  value === "WORKOUT_LOG" || value === "FREE" || value === "ROUTINE";
+  value === "WORKOUT_LOG" || value === "FREE";
 
 const parseTags = (value: string) =>
   value
@@ -42,13 +41,6 @@ const validateTags = (value: string) => {
 
   return { tags: parseTags(value), error: null };
 };
-
-const getPlainSummary = (content: string) =>
-  content
-    .replace(/[#*_`>[\]()~-]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 120);
 
 function CancelWriteDialog({
   isSubmitting,
@@ -122,10 +114,15 @@ export default function WritePage() {
     const params = new URLSearchParams(window.location.search);
     const categoryParam = params.get("category");
 
+    if (categoryParam === "ROUTINE") {
+      router.replace("/routines/write");
+      return;
+    }
+
     if (isWriteCategory(categoryParam)) {
       setCategory(categoryParam);
     }
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     if (isLoading || user) {
@@ -177,19 +174,11 @@ export default function WritePage() {
     setIsSubmitting(true);
 
     try {
-      if (category === "ROUTINE") {
-        await api.post("/routines", {
-          title,
-          summary: getPlainSummary(content),
-          content: contentWithTags,
-        });
-      } else {
-        await api.post("/posts", {
-          category,
-          title,
-          content: contentWithTags,
-        });
-      }
+      await api.post("/posts", {
+        category,
+        title,
+        content: contentWithTags,
+      });
 
       editorRef.current?.destroy();
       router.push(selectedCategory.redirectPath);
@@ -215,7 +204,7 @@ export default function WritePage() {
     <div className="space-y-6">
       <header className="border-b border-slate-200 pb-4">
         <h1 className="text-2xl font-black text-slate-950">작성하기</h1>
-        <p className="mt-2 text-sm text-slate-600">운동 기록, 자유 글, 루틴을 한 곳에서 작성합니다.</p>
+        <p className="mt-2 text-sm text-slate-600">운동 기록과 자유 글을 작성합니다.</p>
       </header>
 
       {!canWrite ? (

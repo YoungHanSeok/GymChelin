@@ -43,9 +43,22 @@ enum ReportTargetType {
   POST
   COMMENT
   ROUTINE
+  ROUTINE_COMMENT
   GYM_REVIEW
 
   @@map("report_target_type")
+}
+
+enum RoutineDayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+
+  @@map("routine_day_of_week")
 }
 
 enum ReportStatus {
@@ -95,6 +108,7 @@ model User {
   commentReactions  CommentReaction[]
   routines          Routine[]
   routineLikes      RoutineLike[]
+  routineComments   RoutineComment[]
   gymReviews        GymReview[]
   reports           Report[]           @relation("ReporterReports")
   moderationLogs    ModerationAction[] @relation("AdminModerationActions")
@@ -196,21 +210,93 @@ model Reaction {
 }
 
 model Routine {
-  id        Int           @id @default(autoincrement())
-  title     String        @db.VarChar(180)
-  summary   String        @db.VarChar(240)
-  content   String
-  status    ContentStatus @default(ACTIVE)
-  likeCount Int           @default(0) @map("like_count")
-  viewCount Int           @default(0) @map("view_count")
-  authorId  Int           @map("author_id")
-  createdAt DateTime      @default(now()) @map("created_at")
-  updatedAt DateTime      @updatedAt @map("updated_at")
-  author    User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  likes     RoutineLike[]
+  id         Int              @id @default(autoincrement())
+  publicCode String           @unique @map("public_code") @db.VarChar(11)
+  title      String           @db.VarChar(180)
+  summary    String           @db.VarChar(240)
+  content    String
+  tags       String[]         @default([])
+  status     ContentStatus    @default(ACTIVE)
+  likeCount  Int              @default(0) @map("like_count")
+  viewCount  Int              @default(0) @map("view_count")
+  authorId   Int              @map("author_id")
+  createdAt  DateTime         @default(now()) @map("created_at")
+  updatedAt  DateTime         @updatedAt @map("updated_at")
+  author     User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  likes      RoutineLike[]
+  days       RoutineDay[]
+  comments   RoutineComment[]
 
   @@index([status, likeCount, createdAt])
   @@map("routines")
+}
+
+model RoutineDay {
+  id        Int               @id @default(autoincrement())
+  routineId Int               @map("routine_id")
+  dayOfWeek RoutineDayOfWeek  @map("day_of_week")
+  sortOrder Int               @map("sort_order")
+  createdAt DateTime          @default(now()) @map("created_at")
+  updatedAt DateTime          @updatedAt @map("updated_at")
+  routine   Routine           @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  exercises RoutineExercise[]
+
+  @@unique([routineId, dayOfWeek])
+  @@index([routineId, sortOrder])
+  @@map("routine_days")
+}
+
+model RoutineExercise {
+  id             Int           @id @default(autoincrement())
+  routineDayId   Int           @map("routine_day_id")
+  exerciseWikiId Int?          @map("exercise_wiki_id")
+  exerciseName   String        @map("exercise_name") @db.VarChar(80)
+  bodyParts      String[]      @map("body_parts")
+  equipment      String?       @db.VarChar(80)
+  sortOrder      Int           @map("sort_order")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+  routineDay     RoutineDay    @relation(fields: [routineDayId], references: [id], onDelete: Cascade)
+  exerciseWiki   ExerciseWiki? @relation(fields: [exerciseWikiId], references: [id], onDelete: SetNull)
+  sets           RoutineSet[]
+
+  @@index([routineDayId, sortOrder])
+  @@index([exerciseWikiId])
+  @@map("routine_exercises")
+}
+
+model RoutineSet {
+  id                Int             @id @default(autoincrement())
+  routineExerciseId Int             @map("routine_exercise_id")
+  sortOrder         Int             @map("sort_order")
+  weightKg          Int             @map("weight_kg")
+  repetitions       Int?
+  durationMinutes   Int?            @map("duration_minutes")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+  routineExercise   RoutineExercise @relation(fields: [routineExerciseId], references: [id], onDelete: Cascade)
+
+  @@index([routineExerciseId, sortOrder])
+  @@map("routine_sets")
+}
+
+model RoutineComment {
+  id        Int              @id @default(autoincrement())
+  content   String
+  status    ContentStatus    @default(ACTIVE)
+  routineId Int              @map("routine_id")
+  authorId  Int              @map("author_id")
+  parentId  Int?             @map("parent_id")
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+  routine   Routine          @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  author    User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent    RoutineComment?  @relation("RoutineCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   RoutineComment[] @relation("RoutineCommentReplies")
+
+  @@index([routineId, status, createdAt])
+  @@index([routineId, parentId, createdAt])
+  @@map("routine_comments")
 }
 
 model RoutineLike {
@@ -226,18 +312,19 @@ model RoutineLike {
 }
 
 model ExerciseWiki {
-  id            Int      @id @default(autoincrement())
-  slug          String   @unique
-  name          String   @db.VarChar(80)
-  targetMuscles String[] @map("target_muscles")
-  equipment     String?
-  difficulty    String   @db.VarChar(30)
-  description   String
-  howTo         String[] @map("how_to")
-  effects       String[]
-  cautions      String[]
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  id               Int               @id @default(autoincrement())
+  slug             String            @unique
+  name             String            @db.VarChar(80)
+  targetMuscles    String[]          @map("target_muscles")
+  equipment        String?
+  difficulty       String            @db.VarChar(30)
+  description      String
+  howTo            String[]          @map("how_to")
+  effects          String[]
+  cautions         String[]
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+  routineExercises RoutineExercise[]
 
   @@index([name])
   @@map("exercise_wikis")
