@@ -7,9 +7,16 @@ interface ModalProps {
   onClose: () => void;
   children: ReactNode;
   ariaLabelledBy?: string;
+  size?: "md" | "lg" | "xl";
 }
 
-export default function Modal({ onClose, children, ariaLabelledBy }: ModalProps) {
+const modalSizeClass = {
+  md: "max-w-md",
+  lg: "max-w-2xl",
+  xl: "max-w-4xl",
+} as const;
+
+export default function Modal({ onClose, children, ariaLabelledBy, size = "md" }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const onCloseRef = useRef(onClose);
@@ -68,7 +75,7 @@ export default function Modal({ onClose, children, ariaLabelledBy }: ModalProps)
   }, []);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/60 p-4">
       <div
         ref={dialogRef}
         role="dialog"
@@ -76,7 +83,7 @@ export default function Modal({ onClose, children, ariaLabelledBy }: ModalProps)
         aria-labelledby={ariaLabelledBy}
         aria-label={ariaLabelledBy ? undefined : "대화상자"}
         tabIndex={-1}
-        className="relative w-full max-w-md rounded bg-white p-6 shadow-xl"
+        className={`relative max-h-[calc(100dvh-2rem)] w-full ${modalSizeClass[size]} overflow-y-auto rounded bg-white p-6 shadow-xl`}
       >
         <button
           ref={closeButtonRef}
