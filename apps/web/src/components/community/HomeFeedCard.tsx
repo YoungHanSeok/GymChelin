@@ -1,3 +1,4 @@
+// 홈 화면에서 게시글과 루틴 미리보기를 카드 형태로 표시한다.
 import Link from "next/link";
 import type { PostPreview, RoutinePreview } from "@/lib/community-types";
 

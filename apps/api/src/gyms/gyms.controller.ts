@@ -1,3 +1,4 @@
+// 헬스장 검색, 상세 조회, 리뷰 작성 API를 제공한다.
 import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';

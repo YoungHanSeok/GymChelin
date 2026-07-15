@@ -1,3 +1,4 @@
+// 루틴과 수행 일지의 소유권, 공개 범위, 데이터 변경 규칙을 처리한다.
 import {
   BadRequestException,
   ForbiddenException,
@@ -215,6 +216,7 @@ const unescapeMarkdownText = (value: string) => {
 };
 
 const replaceMarkdownMedia = (value: string, isImage: boolean) => {
+  // 데이터 이미지와 링크를 제거하되, 사용자가 적은 대체 텍스트는 요약에 남긴다.
   const marker = isImage ? '![' : '[';
   let cursor = 0;
   let result = '';
@@ -288,6 +290,7 @@ const replaceMarkdownMedia = (value: string, isImage: boolean) => {
 };
 
 const toRoutineSummary = (content: string) => {
+  // 목록 미리보기에는 마크다운 문법과 큰 이미지 데이터를 포함하지 않는다.
   const contentWithoutHtmlImages = content.replace(
     /<img\b[^>]*>/gi,
     (imageTag) => {

@@ -1,3 +1,4 @@
+// 위키 조회와 관리자 편집 API를 제공한다.
 import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { AdminGuard } from '../auth/admin.guard';
 import { WikiService } from './wiki.service';

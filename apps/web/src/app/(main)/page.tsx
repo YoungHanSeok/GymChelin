@@ -1,5 +1,6 @@
 "use client";
 
+// 커뮤니티와 루틴의 주요 콘텐츠를 모아 보여 주는 홈 화면이다.
 import AdSlot from "@/components/ads/AdSlot";
 import { HomePostCard, HomeRoutineCard } from "@/components/community/HomeFeedCard";
 import HomePopularList from "@/components/community/HomePopularList";
@@ -187,8 +188,8 @@ export default function HomePage() {
     }));
 
     return {
-      all: [...postItems, ...routineItems].sort((first, second) => second.timestamp - first.timestamp).slice(0, 12),
-      workout: postItems.filter((item) => item.kind === "post" && item.post.category === "WORKOUT_LOG").slice(0, 12),
+      all: [...postItems, ...routineItems].sort((first, second) => second.timestamp - first.timestamp).slice(0, 20),
+      workout: postItems.filter((item) => item.kind === "post" && item.post.category === "WORKOUT_LOG").slice(0, 20),
       free: postItems.filter((item) => item.kind === "post" && item.post.category === "FREE").slice(0, 12),
       routine: routineItems.slice(0, 12),
     };

@@ -1,3 +1,4 @@
+// scrypt 기반 비밀번호 해시와 비교 함수를 제공한다.
 import { randomBytes, scryptSync, timingSafeEqual } from 'crypto';
 
 const HASH_BYTES = 64;

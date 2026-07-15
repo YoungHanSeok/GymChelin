@@ -1,3 +1,4 @@
+// 게시글 미리보기 목록을 게시판 형태로 렌더링한다.
 import Link from "next/link";
 import type { PostPreview } from "@/lib/community-types";
 

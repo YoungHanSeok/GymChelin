@@ -1,3 +1,4 @@
+// 헬스장 정보와 사용자 리뷰를 보여 주는 상세 화면이다.
 import AdSlot from "@/components/ads/AdSlot";
 import { authorName, formatDateLabel, type ApiGym } from "@/lib/community-types";
 import Link from "next/link";

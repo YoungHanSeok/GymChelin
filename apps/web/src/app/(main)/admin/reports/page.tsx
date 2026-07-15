@@ -1,3 +1,4 @@
+// 관리자 신고 처리 화면의 기본 구조를 제공한다.
 export default function AdminReportsPage() {
   return (
     <div className="space-y-6">

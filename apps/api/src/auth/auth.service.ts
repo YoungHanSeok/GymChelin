@@ -1,3 +1,4 @@
+// 토큰 발급, 로그인, 비밀번호 검증 등 인증 흐름을 처리한다.
 import {
   BadRequestException,
   Injectable,
@@ -82,6 +83,8 @@ export class AuthService {
   }
 
   async me(userId: number) {
+    await this.usersService.demoteExpiredAdminById(userId);
+
     return this.prisma.user.findFirst({
       where: { id: userId, deleteYN: 'N' },
       select: this.usersService.publicSelect(),
@@ -388,7 +391,7 @@ export class AuthService {
         throw new UnauthorizedException('탈퇴한 계정입니다.');
       }
 
-      return this.toPublicUser(linkedAccount.user);
+      return this.getPublicActiveUser(linkedAccount.user.id);
     }
 
     const email =
@@ -412,7 +415,7 @@ export class AuthService {
         },
       });
 
-      return this.toPublicUser(existingUser);
+      return this.getPublicActiveUser(existingUser.id);
     }
 
     const baseHandle = this.normalizeHandle(
@@ -488,7 +491,17 @@ export class AuthService {
     return normalized || 'gymchelin';
   }
 
+  private async getPublicActiveUser(userId: number) {
+    const user = await this.me(userId);
+    if (!user) {
+      throw new UnauthorizedException('사용자 정보를 확인할 수 없습니다.');
+    }
+
+    return user;
+  }
+
   private async withTokens<T extends { id: number; role: string }>(user: T) {
+    // 액세스 토큰과 갱신 토큰을 함께 발급해 클라이언트 세션을 구성한다.
     const { token: accessToken } = this.createToken({
       userId: user.id,
       role: user.role,
@@ -555,6 +568,7 @@ export class AuthService {
   }
 
   private verifyToken(token: string, type: TokenType): TokenPayload | null {
+    // 서명, 만료 시각, 토큰 종류를 모두 확인해야 다른 용도의 토큰 재사용을 막을 수 있다.
     const [encodedHeader, encodedPayload, signature] = token.split('.');
     if (
       !encodedHeader ||

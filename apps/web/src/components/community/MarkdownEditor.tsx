@@ -1,5 +1,6 @@
 "use client";
 
+// Toast UI 에디터를 게시글 작성 화면에서 재사용할 수 있게 감싼다.
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import type ToastuiEditor from "@toast-ui/editor";
 import { imageResizePlugin, normalizeResizableImageMarkdown } from "@/components/community/imageResizePlugin";

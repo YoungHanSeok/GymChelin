@@ -1,5 +1,6 @@
 "use client";
 
+// 로그인 사용자 정보를 전역 상태로 제공하고 갱신한다.
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import api from "@/lib/api";
 
@@ -42,6 +43,7 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
   const [isLoading, setIsLoading] = useState(true);
 
   const refreshUser = useCallback(async () => {
+    // 세션 확인 중에도 이전 사용자 정보가 잠깐 노출되지 않도록 로딩 상태를 함께 갱신한다.
     setIsLoading(true);
     const nextUser = await fetchCurrentUser();
     setUser(nextUser);
@@ -50,6 +52,7 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
   }, []);
 
   const logout = useCallback(async () => {
+    // 로그아웃 요청이 실패해도 로컬 세션 상태는 비워 인증 화면으로 전환한다.
     setIsLoading(true);
 
     try {

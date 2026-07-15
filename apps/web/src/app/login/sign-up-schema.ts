@@ -1,3 +1,4 @@
+// 회원 가입 입력값의 길이 제한과 검증 규칙을 정의한다.
 import { z } from "zod";
 
 export const SIGN_UP_LIMITS = {

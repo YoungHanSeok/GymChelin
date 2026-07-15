@@ -1,3 +1,4 @@
+// 관리자 신고 처리와 게시글 관리 API를 제공한다.
 import { Body, Controller, Get, Param, Patch, Query, UseGuards } from '@nestjs/common';
 import { AdminGuard } from '../auth/admin.guard';
 import { CurrentUser } from '../auth/current-user.decorator';

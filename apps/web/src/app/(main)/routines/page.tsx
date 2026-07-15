@@ -1,3 +1,4 @@
+// 서버에서 루틴 목록을 조회해 목록 컴포넌트에 전달한다.
 import api from "@/lib/api";
 import {
   type ApiRoutineListResponse,

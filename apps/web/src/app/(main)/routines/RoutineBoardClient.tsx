@@ -1,5 +1,6 @@
 "use client";
 
+// 검색 조건과 페이지 이동을 반영해 루틴 목록을 표시한다.
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useTransition } from "react";

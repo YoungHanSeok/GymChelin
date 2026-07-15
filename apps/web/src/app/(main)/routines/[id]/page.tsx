@@ -1,3 +1,4 @@
+// 서버에서 루틴 상세 데이터를 준비해 클라이언트 화면에 전달한다.
 import Link from "next/link";
 import type { ApiRoutine } from "@/lib/routine-types";
 import RoutineDetailClient from "./RoutineDetailClient";

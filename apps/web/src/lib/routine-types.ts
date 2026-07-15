@@ -1,3 +1,4 @@
+// 루틴 API 응답과 요일 표시를 위한 공통 타입 및 상수를 정의한다.
 export const routineDayOrder = [
   "MONDAY",
   "TUESDAY",

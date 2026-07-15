@@ -1,5 +1,6 @@
 "use client";
 
+// 기존 루틴을 검색해 새 루틴 폼으로 가져오는 대화상자다.
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { isAxiosError } from "axios";
 import api from "@/lib/api";

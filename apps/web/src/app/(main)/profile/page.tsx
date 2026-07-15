@@ -1,5 +1,6 @@
 "use client";
 
+// 기존 프로필 주소를 계정 화면으로 연결한다.
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthSession } from "@/lib/auth-session";

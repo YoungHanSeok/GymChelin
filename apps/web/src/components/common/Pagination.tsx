@@ -1,5 +1,6 @@
 "use client";
 
+// 목록 화면에서 재사용하는 페이지 이동 UI를 제공한다.
 type PaginationToken = number | "ellipsis-start" | "ellipsis-end";
 
 type PaginationProps = {

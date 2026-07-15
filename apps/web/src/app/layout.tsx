@@ -1,3 +1,4 @@
+// 전역 글꼴, 메타데이터, 인증 세션 공급자를 설정한다.
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";

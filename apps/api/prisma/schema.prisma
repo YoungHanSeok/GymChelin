@@ -93,6 +93,7 @@ model User {
   password          String?
   nickname          String             @unique @db.VarChar(30)
   role              UserRole           @default(USER)
+  adminExpiresAt    DateTime?          @map("admin_expires_at")
   passwordReset     String             @default("N") @map("password_reset") @db.Char(1)
   deleteYN          String             @default("N") @map("delete_yn") @db.Char(1)
   emailVerifiedAt   DateTime?          @map("email_verified_at")
@@ -415,13 +416,14 @@ model ModerationAction {
 }
 
 model AdPlacement {
-  id            Int      @id @default(autoincrement())
-  slot          AdSlot   @unique
-  adsenseClient String?  @map("adsense_client")
-  adsenseSlot   String?  @map("adsense_slot")
-  enabled       Boolean  @default(true)
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  id              Int      @id @default(autoincrement())
+  slot            AdSlot   @unique
+  adsenseClient   String?  @map("adsense_client")
+  adsenseSlot     String?  @map("adsense_slot")
+  defaultImageUrl String?  @map("default_image_url")
+  enabled         Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   @@map("ad_placements")
 }
@@ -433,7 +435,7 @@ model DirectBanner {
   imageUrl    String   @map("image_url")
   linkUrl     String   @map("link_url")
   startsAt    DateTime @map("starts_at")
-  endsAt      DateTime @map("ends_at")
+  endsAt      DateTime? @map("ends_at")
   priority    Int      @default(0)
   impressions Int      @default(0)
   clicks      Int      @default(0)

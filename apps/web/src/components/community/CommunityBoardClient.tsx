@@ -1,5 +1,6 @@
 "use client";
 
+// 게시글 검색, 정렬, 페이지 이동을 포함한 게시판 목록을 표시한다.
 import AdSlot from "@/components/ads/AdSlot";
 import Pagination from "@/components/common/Pagination";
 import CommunityContentToolbar, {

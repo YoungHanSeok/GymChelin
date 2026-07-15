@@ -1,3 +1,4 @@
+// 헬스장 정보와 사용자 리뷰의 조회 및 저장을 처리한다.
 import {
   BadRequestException,
   Injectable,

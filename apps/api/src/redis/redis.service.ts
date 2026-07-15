@@ -1,3 +1,4 @@
+// 토큰과 인증 상태 저장에 사용하는 Redis 연결을 관리한다.
 import {
   Injectable,
   OnModuleDestroy,

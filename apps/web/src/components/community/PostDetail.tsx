@@ -1,9 +1,11 @@
 "use client";
 
+// 게시글 조회, 댓글 작성, 좋아요, 신고 상호작용을 처리한다.
 import { isAxiosError } from "axios";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { FormEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import AdSlot from "@/components/ads/AdSlot";
 import MarkdownEditor, { type MarkdownEditorHandle } from "@/components/community/MarkdownEditor";
 import MarkdownViewer from "@/components/community/MarkdownViewer";
 import api from "@/lib/api";
@@ -807,6 +809,8 @@ export default function PostDetail({ category, backHref, backLabel }: PostDetail
             </div>
           </>
         )}
+
+        {!isEditing && <AdSlot slot="POST_LIST_INLINE" label="게시글 상세 광고" />}
 
         {!isEditing && (
           <section className="border-b border-slate-200 pb-6">

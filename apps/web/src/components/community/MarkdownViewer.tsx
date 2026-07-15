@@ -1,5 +1,6 @@
 "use client";
 
+// 저장된 마크다운 본문을 읽기 전용으로 렌더링한다.
 import { useEffect, useRef } from "react";
 import type ToastuiViewer from "@toast-ui/editor/viewer";
 import { imageResizePlugin } from "@/components/community/imageResizePlugin";

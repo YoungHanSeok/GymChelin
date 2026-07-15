@@ -1,3 +1,4 @@
+// 루틴 작성 폼에서 사용하는 요일과 세트 입력 타입을 정의한다.
 export const routineDayOptions = [
   { value: "MONDAY", label: "월" },
   { value: "TUESDAY", label: "화" },

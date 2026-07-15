@@ -1,3 +1,4 @@
+// 운동 종목 카탈로그 조회와 관리자 관리 API를 제공한다.
 import {
   BadRequestException,
   Body,

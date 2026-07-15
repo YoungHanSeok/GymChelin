@@ -1,3 +1,4 @@
+// 애플리케이션의 도메인 모듈을 조합하는 루트 모듈이다.
 import { Module } from '@nestjs/common';
 import { AdminModule } from './admin/admin.module';
 import { AdsModule } from './ads/ads.module';

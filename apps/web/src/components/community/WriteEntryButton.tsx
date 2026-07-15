@@ -1,5 +1,6 @@
 "use client";
 
+// 로그인 상태를 확인한 뒤 게시글 작성 화면으로 이동한다.
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useAuthSession } from "@/lib/auth-session";

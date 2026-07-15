@@ -1,3 +1,4 @@
+// 운동 루틴, 일지, 운동 종목 카탈로그 기능을 구성한다.
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AdminRoutineExerciseCatalogController } from './routine-exercise-catalog.controller';

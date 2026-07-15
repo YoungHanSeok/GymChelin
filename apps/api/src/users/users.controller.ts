@@ -1,3 +1,4 @@
+// 회원 정보, 이메일 인증, 계정 찾기 API를 제공한다.
 import {
   Body,
   Controller,

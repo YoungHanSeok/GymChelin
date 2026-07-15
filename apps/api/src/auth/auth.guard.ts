@@ -1,3 +1,4 @@
+// 요청의 액세스 토큰을 검증하고 인증 사용자를 주입한다.
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 

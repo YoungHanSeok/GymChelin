@@ -1,5 +1,6 @@
 "use client";
 
+// 루틴 작성 중 운동 종목을 검색하고 선택하는 대화상자다.
 import { FormEvent, useEffect, useRef, useState } from "react";
 import Pagination from "@/components/common/Pagination";
 import api from "@/lib/api";

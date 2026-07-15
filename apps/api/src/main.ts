@@ -1,3 +1,4 @@
+// 애플리케이션 부트스트랩 전에 환경 변수를 불러온다.
 import './env';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';

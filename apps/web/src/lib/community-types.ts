@@ -1,3 +1,4 @@
+// 커뮤니티 API 응답을 화면에서 사용할 타입과 형식으로 정의한다.
 import { routineDayLabel, type ApiRoutine } from "@/lib/routine-types";
 
 export type { ApiRoutine } from "@/lib/routine-types";

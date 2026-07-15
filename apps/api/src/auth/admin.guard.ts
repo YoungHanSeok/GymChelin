@@ -1,3 +1,4 @@
+// 일반 관리자 권한이 필요한 요청을 차단한다.
 import {
   CanActivate,
   ExecutionContext,

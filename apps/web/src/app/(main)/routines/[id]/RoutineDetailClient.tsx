@@ -1,8 +1,10 @@
 "use client";
 
+// 루틴 상세 조회, 좋아요, 수행 일지 작성 상호작용을 처리한다.
 import { isAxiosError } from "axios";
 import Link from "next/link";
 import { type FormEvent, type ReactNode, useMemo, useState } from "react";
+import AdSlot from "@/components/ads/AdSlot";
 import MarkdownViewer from "@/components/community/MarkdownViewer";
 import api from "@/lib/api";
 import { useAuthSession } from "@/lib/auth-session";
@@ -601,6 +603,8 @@ export default function RoutineDetailClient({ initialRoutine }: { initialRoutine
             </button>
           </div>
         </section>
+
+        <AdSlot slot="POST_LIST_INLINE" label="루틴 상세 광고" />
 
         <section className="pb-7" aria-labelledby="routine-comments-title">
           <h2 id="routine-comments-title" className="text-lg font-bold text-slate-950">

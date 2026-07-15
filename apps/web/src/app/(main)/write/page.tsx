@@ -1,5 +1,6 @@
 "use client";
 
+// 게시글과 운동 일지 작성 및 수정 흐름을 처리한다.
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import MarkdownEditor, { type MarkdownEditorHandle } from "@/components/community/MarkdownEditor";

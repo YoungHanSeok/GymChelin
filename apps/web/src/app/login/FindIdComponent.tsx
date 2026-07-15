@@ -1,5 +1,6 @@
 "use client";
 
+// 이메일 인증으로 아이디를 찾는 폼을 제공한다.
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { useForm } from "react-hook-form";

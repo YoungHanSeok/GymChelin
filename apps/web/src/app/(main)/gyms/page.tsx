@@ -1,5 +1,6 @@
 "use client";
 
+// 검색어와 필터로 헬스장을 탐색하는 화면이다.
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import api from "@/lib/api";

@@ -1,5 +1,6 @@
 "use client";
 
+// 관리자가 운동 종목 카탈로그를 관리하는 화면이다.
 import { zodResolver } from "@hookform/resolvers/zod";
 import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";

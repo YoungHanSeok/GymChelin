@@ -1,5 +1,6 @@
 "use client";
 
+// 광고 슬롯 설정에 따라 애드센스 또는 직접 배너를 렌더링한다.
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
 
@@ -8,10 +9,15 @@ type Placement =
       type: "DIRECT";
       slot: string;
       banner: {
-        title: string;
+        title?: string | null;
         imageUrl: string;
-        linkUrl: string;
+        linkUrl?: string | null;
       };
+    }
+  | {
+      type: "DEFAULT";
+      slot: string;
+      imageUrl: string;
     }
   | {
       type: "ADSENSE";
@@ -43,6 +49,13 @@ const slotSize: Record<string, string> = {
   GYM_DETAIL_SIDE: "min-h-64",
 };
 
+const fixedBannerHeight: Record<string, string> = {
+  MAIN_TOP: "h-24",
+  POST_LIST_INLINE: "h-20",
+};
+
+const verticalBannerSlots = new Set(["MAIN_LEFT", "MAIN_RIGHT", "GYM_DETAIL_SIDE"]);
+
 type AdSlotProps = {
   slot: string;
   label?: string;
@@ -51,7 +64,11 @@ type AdSlotProps = {
 
 const hasRenderablePlacement = (placement: Placement | null) => {
   if (placement?.type === "DIRECT") {
-    return !!placement.banner.imageUrl && !!placement.banner.linkUrl;
+    return !!placement.banner.imageUrl;
+  }
+
+  if (placement?.type === "DEFAULT") {
+    return !!placement.imageUrl;
   }
 
   if (placement?.type === "ADSENSE") {
@@ -61,7 +78,60 @@ const hasRenderablePlacement = (placement: Placement | null) => {
   return false;
 };
 
-export default function AdSlot({ slot, onVisibilityChange }: AdSlotProps) {
+const getSafeLinkUrl = (value?: string | null) => {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    const url = new URL(value, "http://localhost");
+    return url.protocol === "http:" || url.protocol === "https:" ? value : null;
+  } catch {
+    return null;
+  }
+};
+
+const getBannerContainerClass = (slot: string) => {
+  const fixedHeight = fixedBannerHeight[slot];
+
+  if (fixedHeight) {
+    return `${fixedHeight} flex w-full items-center justify-center`;
+  }
+
+  if (verticalBannerSlots.has(slot)) {
+    return "block w-full";
+  }
+
+  return "flex min-h-24 w-full items-center justify-center";
+};
+
+const getBannerImageClass = (slot: string) => {
+  if (fixedBannerHeight[slot]) {
+    return "block h-full w-auto max-w-full object-contain";
+  }
+
+  if (verticalBannerSlots.has(slot)) {
+    return "block h-auto w-full";
+  }
+
+  return "block h-auto max-w-full object-contain";
+};
+
+type BannerImageProps = {
+  slot: string;
+  imageUrl: string;
+  label: string;
+};
+
+function BannerImage({ slot, imageUrl, label }: BannerImageProps) {
+  return (
+    // 원본 크기를 알 수 없는 원격 이미지와 data URL의 자연 비율을 유지한다.
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={imageUrl} alt={label} className={getBannerImageClass(slot)} />
+  );
+}
+
+export default function AdSlot({ slot, label = "배너 광고", onVisibilityChange }: AdSlotProps) {
   const [placement, setPlacement] = useState<Placement | null>(null);
 
   useEffect(() => {
@@ -104,19 +174,35 @@ export default function AdSlot({ slot, onVisibilityChange }: AdSlotProps) {
   const baseClass = `${sizeClass} flex items-center justify-center rounded border border-dashed border-slate-300 bg-slate-50 text-center text-xs text-slate-500`;
 
   if (placement?.type === "DIRECT" && hasRenderablePlacement(placement)) {
+    const bannerLabel = placement.banner.title?.trim() || label;
+    const safeLinkUrl = getSafeLinkUrl(placement.banner.linkUrl);
+    const bannerContainerClass = `${getBannerContainerClass(slot)} overflow-hidden rounded border border-slate-200 bg-white`;
+    const bannerImage = <BannerImage slot={slot} imageUrl={placement.banner.imageUrl} label={bannerLabel} />;
+
+    if (!safeLinkUrl) {
+      return <div className={bannerContainerClass}>{bannerImage}</div>;
+    }
+
     return (
       <a
-        href={placement.banner.linkUrl}
+        href={safeLinkUrl}
         target="_blank"
         rel="noreferrer"
-        aria-label={placement.banner.title}
-        className={`${slotSize[slot] ?? "min-h-24"} block overflow-hidden rounded border border-slate-200 bg-white`}
+        aria-label={bannerLabel}
+        className={bannerContainerClass}
       >
-        <span
-          className="block h-full min-h-24 w-full bg-cover bg-center"
-          style={{ backgroundImage: `url(${placement.banner.imageUrl})` }}
-        />
+        {bannerImage}
       </a>
+    );
+  }
+
+  if (placement?.type === "DEFAULT" && hasRenderablePlacement(placement)) {
+    return (
+      <div
+        className={`${getBannerContainerClass(slot)} overflow-hidden rounded border border-slate-200 bg-white`}
+      >
+        <BannerImage slot={slot} imageUrl={placement.imageUrl} label={`${label} 기본 이미지`} />
+      </div>
     );
   }
 

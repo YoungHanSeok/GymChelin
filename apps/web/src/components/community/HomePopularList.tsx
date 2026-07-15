@@ -1,5 +1,6 @@
 "use client";
 
+// 인기 게시글을 슬라이드 목록으로 표시한다.
 import Link from "next/link";
 import { Pagination } from "swiper/modules";
 import { Swiper, SwiperSlide } from "swiper/react";

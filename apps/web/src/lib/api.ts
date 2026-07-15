@@ -1,3 +1,4 @@
+// 액세스 토큰 갱신과 인증 헤더 처리를 포함한 Axios 클라이언트다.
 import axios, { type InternalAxiosRequestConfig } from "axios";
 
 type RetriableRequestConfig = InternalAxiosRequestConfig & {
@@ -30,6 +31,7 @@ api.interceptors.response.use(
     const originalRequest = error.config as RetriableRequestConfig | undefined;
     const requestUrl = originalRequest?.url ?? "";
     const shouldRefresh =
+      // 로그인·로그아웃·갱신 요청 자체는 재시도하면 순환 호출될 수 있어 제외한다.
       error.response?.status === 401 &&
       originalRequest &&
       !originalRequest._retry &&

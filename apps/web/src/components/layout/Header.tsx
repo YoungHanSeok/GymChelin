@@ -1,9 +1,11 @@
 "use client";
 
+// 전역 메뉴, 인증 상태, 사용자 메뉴를 표시하는 헤더다.
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { isAdminRole, useAuthSession } from "@/lib/auth-session";
+import Modal from "@/app/_components/modalComponent";
+import { isAdminRole, isSuperAdminRole, useAuthSession } from "@/lib/auth-session";
 
 type Theme = "light" | "dark";
 
@@ -123,6 +125,8 @@ export default function Header() {
   const { user, isLoading, logout } = useAuthSession();
   const [isOpen, setIsOpen] = useState(false);
   const [isAccountOpen, setIsAccountOpen] = useState(false);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -151,18 +155,40 @@ export default function Header() {
     };
   }, [isAccountOpen]);
 
+  const closeLogoutModal = () => {
+    if (isLoggingOut) {
+      return;
+    }
+
+    setIsLogoutModalOpen(false);
+  };
+
   const handleLogout = async () => {
-    await logout();
-    setIsOpen(false);
-    setIsAccountOpen(false);
-    router.replace("/login");
-    router.refresh();
+    if (isLoggingOut) {
+      return;
+    }
+
+    setIsLoggingOut(true);
+
+    try {
+      await logout();
+    } catch {
+      // 로그아웃 API 오류가 발생해도 로컬 세션은 auth-session에서 정리된다.
+    } finally {
+      setIsLoggingOut(false);
+      setIsLogoutModalOpen(false);
+      setIsOpen(false);
+      setIsAccountOpen(false);
+      router.replace("/login");
+      router.refresh();
+    }
   };
 
   const userIsAdmin = isAdminRole(user?.role);
+  const userIsSuperAdmin = isSuperAdminRole(user?.role);
 
   const authControl = user ? (
-    <div ref={accountMenuRef} className="relative hidden md:block">
+    <div ref={accountMenuRef} className="relative hidden lg:block">
       <button
         type="button"
         onClick={() => setIsAccountOpen((value) => !value)}
@@ -201,7 +227,27 @@ export default function Header() {
           >
             계정관리
           </Link>
-          {userIsAdmin && (
+          {userIsSuperAdmin ? (
+            <div role="group" aria-label="최고 관리자 기능" className="mt-1 border-t border-slate-200 pt-1">
+              <p className="px-4 py-1.5 text-xs font-bold text-slate-500">최고 관리자 기능</p>
+              <Link
+                href="/admin/ads"
+                role="menuitem"
+                onClick={() => setIsAccountOpen(false)}
+                className="block px-5 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-950"
+              >
+                배너 관리
+              </Link>
+              <Link
+                href="/admin/users"
+                role="menuitem"
+                onClick={() => setIsAccountOpen(false)}
+                className="block px-5 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-950"
+              >
+                관리자 임명
+              </Link>
+            </div>
+          ) : userIsAdmin ? (
             <div role="group" aria-label="관리자 기능" className="mt-1 border-t border-slate-200 pt-1">
               <p className="px-4 py-1.5 text-xs font-bold text-slate-500">관리자 기능</p>
               <Link
@@ -213,11 +259,11 @@ export default function Header() {
                 루틴 운동추가
               </Link>
             </div>
-          )}
+          ) : null}
           <button
             type="button"
             role="menuitem"
-            onClick={handleLogout}
+            onClick={() => setIsLogoutModalOpen(true)}
             className="block w-full px-4 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-950"
           >
             로그아웃
@@ -228,14 +274,15 @@ export default function Header() {
   ) : (
     <Link
       href="/login"
-      className="hidden h-10 items-center rounded bg-slate-950 px-3 text-sm font-semibold text-white hover:bg-emerald-700 md:inline-flex"
+      className="hidden h-10 items-center rounded bg-slate-950 px-3 text-sm font-semibold text-white hover:bg-emerald-700 lg:inline-flex"
     >
       로그인
     </Link>
   );
 
   return (
-    <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
+    <>
+      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3">
         <Link href="/" className="shrink-0 text-xl font-black tracking-normal text-slate-950">
           짐슐랭
@@ -253,7 +300,7 @@ export default function Header() {
           ))}
         </nav>
 
-        <form className="ml-auto hidden w-full max-w-72 md:block">
+        <form className="ml-auto hidden w-full max-w-72 lg:block">
           <label htmlFor="site-search" className="sr-only">
             검색
           </label>
@@ -265,23 +312,23 @@ export default function Header() {
           />
         </form>
 
-        <div className="ml-auto flex items-center gap-2 md:ml-0">
+        <div className="ml-auto flex items-center gap-2 lg:ml-0">
           <ThemeToggle />
         </div>
 
-        {isLoading ? <div aria-hidden="true" className="hidden h-10 w-14 shrink-0 md:block" /> : authControl}
+        {isLoading ? <div aria-hidden="true" className="hidden h-10 w-14 shrink-0 lg:block" /> : authControl}
 
         <button
           type="button"
           onClick={() => setIsOpen((value) => !value)}
-          className="h-10 rounded border border-slate-300 px-3 text-sm font-semibold text-slate-700 md:hidden"
+          className="h-10 rounded border border-slate-300 px-3 text-sm font-semibold text-slate-700 lg:hidden"
         >
           메뉴
         </button>
       </div>
 
       {isOpen && (
-        <div className="border-t border-slate-200 bg-white px-4 py-3 md:hidden">
+        <div className="border-t border-slate-200 bg-white px-4 py-3 lg:hidden">
           <form className="mb-3">
             <input
               name="q"
@@ -319,7 +366,25 @@ export default function Header() {
                 >
                   계정관리
                 </Link>
-                {userIsAdmin && (
+                {userIsSuperAdmin ? (
+                  <div className="mt-1 border-t border-slate-200 pt-2">
+                    <p className="px-2 pb-1 text-xs font-bold text-slate-500">최고 관리자 기능</p>
+                    <Link
+                      href="/admin/ads"
+                      className="block rounded px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      배너 관리
+                    </Link>
+                    <Link
+                      href="/admin/users"
+                      className="block rounded px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      관리자 임명
+                    </Link>
+                  </div>
+                ) : userIsAdmin ? (
                   <div className="mt-1 border-t border-slate-200 pt-2">
                     <p className="px-2 pb-1 text-xs font-bold text-slate-500">관리자 기능</p>
                     <Link
@@ -330,11 +395,11 @@ export default function Header() {
                       루틴 운동추가
                     </Link>
                   </div>
-                )}
+                ) : null}
                 <button
                   type="button"
                   className="rounded border border-slate-300 px-2 py-2 text-center text-sm font-semibold text-slate-700"
-                  onClick={handleLogout}
+                  onClick={() => setIsLogoutModalOpen(true)}
                 >
                   로그아웃
                 </button>
@@ -351,6 +416,35 @@ export default function Header() {
           </nav>
         </div>
       )}
-    </header>
+      </header>
+
+      {isLogoutModalOpen && (
+        <Modal onClose={closeLogoutModal} ariaLabelledBy="logout-confirm-title">
+          <h2 id="logout-confirm-title" className="pr-8 text-xl font-bold text-slate-950">
+            로그아웃 하시겠습니까?
+          </h2>
+          <p className="mt-3 text-sm text-slate-600">현재 계정에서 로그아웃합니다.</p>
+          <div className="mt-6 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={closeLogoutModal}
+              disabled={isLoggingOut}
+              className="rounded border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              취소
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleLogout()}
+              disabled={isLoggingOut}
+              aria-busy={isLoggingOut}
+              className="rounded bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isLoggingOut ? "로그아웃 중..." : "로그아웃"}
+            </button>
+          </div>
+        </Modal>
+      )}
+    </>
   );
 }

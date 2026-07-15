@@ -1,3 +1,4 @@
+// 운동 종목 카탈로그의 검색, 등록, 수정 규칙을 처리한다.
 import {
   BadRequestException,
   Injectable,

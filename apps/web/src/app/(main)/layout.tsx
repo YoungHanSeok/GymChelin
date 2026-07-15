@@ -1,3 +1,4 @@
+// 메인 영역에 공통 헤더와 광고 슬롯을 배치한다.
 import AdSlot from "@/components/ads/AdSlot";
 import Header from "@/components/layout/Header";
 
@@ -11,14 +12,14 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         </div>
       </div>
       <main className="mx-auto grid max-w-7xl grid-cols-1 gap-8 px-4 py-6 lg:grid-cols-[160px_minmax(0,1fr)_220px]">
-        <aside className="hidden lg:block">
-          <div className="sticky top-24">
+        <aside className="order-2 lg:order-1">
+          <div className="lg:sticky lg:top-24">
             <AdSlot slot="MAIN_LEFT" label="왼쪽 광고" />
           </div>
         </aside>
-        <section className="min-w-0">{children}</section>
-        <aside className="space-y-5">
-          <div className="sticky top-24 space-y-5">
+        <section className="order-1 min-w-0 lg:order-2">{children}</section>
+        <aside className="order-3 space-y-5">
+          <div className="space-y-5 lg:sticky lg:top-24">
             <AdSlot slot="MAIN_RIGHT" label="오른쪽 광고" />
           </div>
         </aside>

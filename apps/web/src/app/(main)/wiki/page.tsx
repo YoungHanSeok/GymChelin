@@ -1,5 +1,6 @@
 "use client";
 
+// 위키 문서를 검색하고 관리자가 편집할 수 있는 화면이다.
 import { useEffect, useMemo, useState } from "react";
 import api from "@/lib/api";
 import { type ApiWiki, type WikiPreview, toWikiPreview } from "@/lib/community-types";

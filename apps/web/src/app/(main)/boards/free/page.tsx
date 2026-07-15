@@ -1,3 +1,4 @@
+// 서버에서 자유게시판 목록을 준비해 게시판 클라이언트에 전달한다.
 import CommunityBoardClient from "@/components/community/CommunityBoardClient";
 import api from "@/lib/api";
 import {

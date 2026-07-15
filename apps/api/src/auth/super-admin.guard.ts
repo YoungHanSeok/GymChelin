@@ -1,3 +1,4 @@
+// 최고 관리자 전용 요청을 차단한다.
 import {
   CanActivate,
   ExecutionContext,

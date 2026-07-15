@@ -1,3 +1,4 @@
+// 인증과 권한 검사 기능을 전역으로 제공한다.
 import { Global, Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
 import { RedisModule } from '../redis/redis.module';

@@ -1,9 +1,11 @@
+// 회원 가입, 프로필, 이메일 인증, 계정 찾기 규칙을 처리한다.
 import {
   BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { UserRole } from '@prisma/client';
 import { createHmac, randomInt } from 'crypto';
 import { hashPassword, verifyPassword } from '../common/password';
 import { PrismaService } from '../prisma/prisma.service';
@@ -118,11 +120,55 @@ export class UsersService {
     });
   }
 
-  findByUsername(username: string) {
+  async findByUsername(username: string) {
+    const normalizedUsername = username.trim();
+
+    await this.prisma.user.updateMany({
+      where: {
+        username: normalizedUsername,
+        deleteYN: 'N',
+        role: UserRole.ADMIN,
+        adminExpiresAt: { lte: new Date() },
+      },
+      data: {
+        role: UserRole.USER,
+        adminExpiresAt: null,
+      },
+    });
+
     return this.prisma.user.findFirst({
       where: {
         deleteYN: 'N',
-        username: username.trim(),
+        username: normalizedUsername,
+      },
+    });
+  }
+
+  demoteExpiredAdminById(userId: number) {
+    return this.prisma.user.updateMany({
+      where: {
+        id: userId,
+        deleteYN: 'N',
+        role: UserRole.ADMIN,
+        adminExpiresAt: { lte: new Date() },
+      },
+      data: {
+        role: UserRole.USER,
+        adminExpiresAt: null,
+      },
+    });
+  }
+
+  demoteAllExpiredAdmins() {
+    return this.prisma.user.updateMany({
+      where: {
+        deleteYN: 'N',
+        role: UserRole.ADMIN,
+        adminExpiresAt: { lte: new Date() },
+      },
+      data: {
+        role: UserRole.USER,
+        adminExpiresAt: null,
       },
     });
   }

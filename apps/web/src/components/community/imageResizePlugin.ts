@@ -1,3 +1,4 @@
+// 마크다운 에디터 이미지의 너비 조절과 저장 형식을 처리한다.
 const MIN_IMAGE_WIDTH = 80;
 const MAX_IMAGE_WIDTH = 1600;
 const IMAGE_WIDTH_MARKER = "gymchelin-width=";
@@ -262,6 +263,7 @@ function findClosingBacktickRun(markdown: string, start: number, markerLength: n
 }
 
 function findProtectedMarkdownRanges(markdown: string) {
+  // 코드 블록과 인라인 코드 안의 HTML은 일반 본문 이미지로 변환하면 안 된다.
   const ranges: MarkdownRange[] = [];
   const activeListContentIndents: number[] = [];
   let consecutiveBlankLines = 0;
@@ -372,6 +374,7 @@ function convertLegacySizedImage(imageTag: string) {
 }
 
 export function normalizeResizableImageMarkdown(markdown: string) {
+  // 이전 HTML 이미지 형식을 현재의 너비 메타데이터가 있는 마크다운 형식으로 통일한다.
   const protectedRanges = findProtectedMarkdownRanges(markdown);
   let protectedRangeIndex = 0;
   let cursor = 0;

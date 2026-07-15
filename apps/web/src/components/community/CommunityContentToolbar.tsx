@@ -1,5 +1,6 @@
 "use client";
 
+// 게시판 검색 조건과 글쓰기 진입 동작을 제공한다.
 import WriteEntryButton, { type WriteCategory } from "@/components/community/WriteEntryButton";
 import type { CommunitySearchType } from "@/lib/community-types";
 import { type FormEvent, useEffect, useState } from "react";

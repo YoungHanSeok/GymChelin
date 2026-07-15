@@ -1,3 +1,4 @@
+// 게시글, 댓글, 좋아요 관련 HTTP API를 제공한다.
 import {
   BadRequestException,
   Body,

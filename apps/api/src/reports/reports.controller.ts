@@ -1,3 +1,4 @@
+// 게시글과 댓글 신고 접수 API를 제공한다.
 import { Body, Controller, Post, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';

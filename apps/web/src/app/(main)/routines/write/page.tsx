@@ -1,3 +1,4 @@
+// 운동 루틴 작성 폼을 제공하는 페이지다.
 import RoutineWriteForm from "./RoutineWriteForm";
 
 export default function RoutineWritePage() {

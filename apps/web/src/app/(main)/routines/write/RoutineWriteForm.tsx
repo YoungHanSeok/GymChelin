@@ -1,5 +1,6 @@
 "use client";
 
+// 운동 구성과 공개 범위를 입력해 루틴을 저장하는 폼이다.
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";

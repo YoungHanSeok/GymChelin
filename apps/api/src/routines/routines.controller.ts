@@ -1,3 +1,4 @@
+// 운동 루틴과 수행 일지 API를 제공한다.
 import {
   BadRequestException,
   Body,

@@ -1,3 +1,4 @@
+// Toast UI 에디터 패키지에서 프로젝트가 사용하는 타입을 보완한다.
 declare module "@toast-ui/editor" {
   export type EditorTheme = "light" | "dark";
 

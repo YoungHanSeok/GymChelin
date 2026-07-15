@@ -1,5 +1,6 @@
 "use client";
 
+// 약관 동의와 입력 검증을 포함한 회원 가입 폼을 제공한다.
 import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";

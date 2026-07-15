@@ -1,3 +1,4 @@
+// 위키 문서의 검색, 조회, 수정 규칙을 처리한다.
 import {
   BadRequestException,
   Injectable,

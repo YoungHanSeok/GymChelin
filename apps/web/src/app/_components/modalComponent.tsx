@@ -1,5 +1,6 @@
 "use client";
 
+// 포커스 제어와 닫기 동작을 포함한 공통 모달을 제공한다.
 import { type ReactNode, useEffect, useRef } from "react";
 
 interface ModalProps {

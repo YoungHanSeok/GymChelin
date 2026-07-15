@@ -1,3 +1,4 @@
+// 이메일 인증과 계정 찾기 메일 발송을 담당한다.
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import nodemailer, { type Transporter } from 'nodemailer';
 

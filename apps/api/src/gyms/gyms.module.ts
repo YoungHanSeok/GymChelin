@@ -1,3 +1,4 @@
+// 헬스장 조회와 리뷰 기능을 구성한다.
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
 import { GymsController } from './gyms.controller';

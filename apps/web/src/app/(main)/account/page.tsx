@@ -1,5 +1,6 @@
 "use client";
 
+// 로그인한 사용자의 계정 정보와 보안 설정 화면을 제공한다.
 import { type FormEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Modal from "@/app/_components/modalComponent";

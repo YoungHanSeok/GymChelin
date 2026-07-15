@@ -1,3 +1,4 @@
+// 게시글, 댓글, 좋아요의 권한과 데이터 변경 규칙을 처리한다.
 import {
   BadRequestException,
   ForbiddenException,
@@ -521,6 +522,7 @@ export class PostsService {
   }
 
   private buildCommentTree(comments: CommentEntity[]) {
+    // 한 번 만든 ID 맵을 이용해 부모 댓글을 찾아 계층 구조로 변환한다.
     const commentMap = new Map<number, CommentView>();
     const roots: CommentView[] = [];
 

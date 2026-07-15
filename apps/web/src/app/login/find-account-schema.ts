@@ -1,3 +1,4 @@
+// 아이디 찾기와 비밀번호 재설정 폼의 입력 검증 규칙이다.
 import { z } from "zod";
 import { SIGN_UP_LIMITS } from "./sign-up-schema";
 

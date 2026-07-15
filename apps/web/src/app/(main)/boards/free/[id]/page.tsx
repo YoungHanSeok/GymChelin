@@ -1,3 +1,4 @@
+// 자유게시판 게시글 상세 화면을 구성한다.
 import PostDetail from "@/components/community/PostDetail";
 
 export default function FreeBoardDetailPage() {

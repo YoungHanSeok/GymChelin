@@ -1,3 +1,4 @@
+// 중복 신고 방지와 신고 대상 검증을 처리한다.
 import {
   BadRequestException,
   Injectable,

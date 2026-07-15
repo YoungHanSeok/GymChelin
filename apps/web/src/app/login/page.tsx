@@ -1,5 +1,6 @@
 "use client";
 
+// 로그인과 계정 찾기 화면 전환을 처리한다.
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
